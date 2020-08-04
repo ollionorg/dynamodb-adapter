@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/config"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/models"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/pkg/errors"
@@ -26,7 +25,7 @@ func InitDBAPI(g *gin.RouterGroup) {
 	r.POST("/batchGetWithProjection", BatchGetMetaWithProjection)
 	r.POST("/get", Get)
 
-	r.POST("/query", QueryTable)
+	r.POST("/Query", QueryTable)
 	r.POST("/queryWithProjection", QueryTable)
 	r.POST("/queryWithFilterExpression", QueryTable)
 
@@ -191,43 +190,17 @@ func queryResponse(query models.Query, c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{})
 		return
 	}
-	filters := make(map[string]*dynamodb.AttributeValue)
-	if query.HashValDDB != nil {
-		filters["hasVal"] = query.HashValDDB
-	}
-	if query.FilterValDDB != nil {
-		filters["filterVal"] = query.FilterValDDB
-	}
-	if query.RangeValDDB != nil {
-		filters["rangeVal"] = query.RangeValDDB
-	}
-	tmpFilters, err := ConvertDynamoToMap(query.TableName, filters)
-	if err != nil {
-		c.JSON(errors.New("ValidationException", err).HTTPResponse(query))
-		return
+
+	if query.Select == "COUNT" {
+		query.OnlyCount = true
 	}
 
-	val, ok := tmpFilters["hasVal"]
-	if ok {
-		query.HashVal = val
-	}
-
-	val, ok = tmpFilters["filterVal"]
-	if ok {
-		query.FilterVal = val
-	}
-
-	val, ok = tmpFilters["rangeVal"]
-	if ok {
-		query.RangeVal = val
-	}
-
-	query.StartFrom, err1 = ConvertDynamoToMap(query.TableName, query.DynamoObject)
+	query.StartFrom, err1 = ConvertDynamoToMap(query.TableName, query.ExclusiveStartKey)
 	if err1 != nil {
 		c.JSON(errors.New("ValidationException", err1).HTTPResponse(query))
 		return
 	}
-	query.RangeValMap, err1 = ConvertDynamoToMap(query.TableName, query.RangeValMapDDB)
+	query.RangeValMap, err1 = ConvertDynamoToMap(query.TableName, query.ExpressionAttributeValues)
 	if err1 != nil {
 		c.JSON(errors.New("ValidationException", err1).HTTPResponse(query))
 		return
@@ -429,26 +402,6 @@ func BatchGetMetaWithProjection(c *gin.Context) {
 		if time.Since(start) > time.Second*1 {
 			go fmt.Println("BatchGetCall", batchGetWithProjectionMeta)
 		}
-	}
-}
-
-// QueryWithFilterExpression filter the data for a query.
-func QueryWithFilterExpression(c *gin.Context) {
-	defer PanicHandler(c)
-	defer c.Request.Body.Close()
-	var query models.Query
-	if err := c.ShouldBindJSON(&query); err != nil {
-		c.JSON(errors.New("ValidationException", err).HTTPResponse(query))
-	} else if query.HashVal != "" {
-		logger.LogDebug(query)
-		if query.HashExp == "" {
-			c.JSON(errors.New("ValidationException").HTTPResponse(query))
-		} else {
-			queryResponse(query, c)
-		}
-	} else {
-		logger.LogDebug(query)
-		queryResponse(query, c)
 	}
 }
 
