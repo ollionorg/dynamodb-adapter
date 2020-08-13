@@ -26,8 +26,6 @@ func InitDBAPI(g *gin.RouterGroup) {
 	r.POST("/get", Get)
 
 	r.POST("/Query", QueryTable)
-	r.POST("/queryWithProjection", QueryTable)
-	r.POST("/queryWithFilterExpression", QueryTable)
 
 	r.POST("/put", UpdateMeta)
 	r.POST("/batchPut", BatchUpdateMeta)
