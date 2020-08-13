@@ -214,33 +214,33 @@ var (
 		Limit:         4,
 	}
 
-	queryTestCaseOutput1 = `{"Count":5,"Items":[{"address":"Silicon Valley","age":40,"emp_id":4,"first_name":"Lea","last_name":"Martin"},{"address":"Pune","age":30,"emp_id":3,"first_name":"Alice","last_name":"Trentor"},{"address":"Ney York","age":20,"emp_id":2,"first_name":"Catalina","last_name":"Smith"},{"address":"Shamli","age":10,"emp_id":1,"first_name":"Marc","last_name":"Richards"},{"address":"London","age":50,"emp_id":5,"first_name":"David","last_name":"Lomond"}],"LastEvaluatedKey":null}`
+	queryTestCaseOutput1 = `{"Count":5,"Items":{"L":[{"address":{"S":"Silicon Valley"},"age":{"N":"40"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"},"last_name":{"S":"Martin"}},{"address":{"S":"Pune"},"age":{"N":"30"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}},{"address":{"S":"Ney York"},"age":{"N":"20"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}},{"address":{"S":"Shamli"},"age":{"N":"10"},"emp_id":{"N":"1"},"first_name":{"S":"Marc"},"last_name":{"S":"Richards"}},{"address":{"S":"London"},"age":{"N":"50"},"emp_id":{"N":"5"},"first_name":{"S":"David"},"last_name":{"S":"Lomond"}}]},"LastEvaluatedKey":null}`
 
-	queryTestCaseOutput2 = `{"Count":5,"Items":[{"emp_id":4,"first_name":"Lea"},{"emp_id":3,"first_name":"Alice"},{"emp_id":2,"first_name":"Catalina"},{"emp_id":1,"first_name":"Marc"},{"emp_id":5,"first_name":"David"}],"LastEvaluatedKey":null}`
+	queryTestCaseOutput2 = `{"Count":5,"Items":{"L":[{"emp_id":{"N":"4"},"first_name":{"S":"Lea"}},{"emp_id":{"N":"3"},"first_name":{"S":"Alice"}},{"emp_id":{"N":"2"},"first_name":{"S":"Catalina"}},{"emp_id":{"N":"1"},"first_name":{"S":"Marc"}},{"emp_id":{"N":"5"},"first_name":{"S":"David"}}]},"LastEvaluatedKey":null}`
 
-	queryTestCaseOutput3 = `{"Count":5,"Items":[{"emp_id":4,"first_name":"Lea","last_name":"Martin"},{"emp_id":3,"first_name":"Alice","last_name":"Trentor"},{"emp_id":2,"first_name":"Catalina","last_name":"Smith"},{"emp_id":1,"first_name":"Marc","last_name":"Richards"},{"emp_id":5,"first_name":"David","last_name":"Lomond"}],"LastEvaluatedKey":null}`
+	queryTestCaseOutput3 = `{"Count":5,"Items":{"L":[{"emp_id":{"N":"4"},"first_name":{"S":"Lea"},"last_name":{"S":"Martin"}},{"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}},{"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}},{"emp_id":{"N":"1"},"first_name":{"S":"Marc"},"last_name":{"S":"Richards"}},{"emp_id":{"N":"5"},"first_name":{"S":"David"},"last_name":{"S":"Lomond"}}]},"LastEvaluatedKey":null}`
 
-	queryTestCaseOutput4 = `{"Count":1,"Items":[{"emp_id":2,"first_name":"Catalina","last_name":"Smith"}],"LastEvaluatedKey":null}`
+	queryTestCaseOutput4 = `{"Count":1,"Items":{"L":[{"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}}]},"LastEvaluatedKey":null}`
 
-	queryTestCaseOutput6 = `{"Count":1,"Items":[{"emp_id":3,"first_name":"Alice","last_name":"Trentor"}],"LastEvaluatedKey":null}`
+	queryTestCaseOutput6 = `{"Count":1,"Items":{"L":[{"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}}]},"LastEvaluatedKey":null}`
 
-	queryTestCaseOutput8 = `{"Count":1,"Items":[{"emp_id":3,"first_name":"Alice","last_name":"Trentor"}],"LastEvaluatedKey":null}`
+	queryTestCaseOutput8 = `{"Count":1,"Items":{"L":[{"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}}]},"LastEvaluatedKey":null}`
 
-	queryTestCaseOutput9 = `{"Count":1,"Items":[{"emp_id":3,"first_name":"Alice","last_name":"Trentor"}],"LastEvaluatedKey":null}`
+	queryTestCaseOutput9 = `{"Count":1,"Items":{"L":[{"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}}]},"LastEvaluatedKey":null}`
 
-	queryTestCaseOutput10 = `{"Count":5,"Items":[{"address":"Silicon Valley","age":40,"emp_id":4,"first_name":"Lea","last_name":"Martin"},{"address":"Pune","age":30,"emp_id":3,"first_name":"Alice","last_name":"Trentor"},{"address":"Ney York","age":20,"emp_id":2,"first_name":"Catalina","last_name":"Smith"},{"address":"Shamli","age":10,"emp_id":1,"first_name":"Marc","last_name":"Richards"},{"address":"London","age":50,"emp_id":5,"first_name":"David","last_name":"Lomond"}],"LastEvaluatedKey":null}`
+	queryTestCaseOutput10 = `{"Count":5,"Items":{"L":[{"address":{"S":"Silicon Valley"},"age":{"N":"40"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"},"last_name":{"S":"Martin"}},{"address":{"S":"Pune"},"age":{"N":"30"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}},{"address":{"S":"Ney York"},"age":{"N":"20"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}},{"address":{"S":"Shamli"},"age":{"N":"10"},"emp_id":{"N":"1"},"first_name":{"S":"Marc"},"last_name":{"S":"Richards"}},{"address":{"S":"London"},"age":{"N":"50"},"emp_id":{"N":"5"},"first_name":{"S":"David"},"last_name":{"S":"Lomond"}}]},"LastEvaluatedKey":null}`
 
-	queryTestCaseOutput11 = `{"Count":4,"Items":[{"address":"Silicon Valley","age":40,"emp_id":4,"first_name":"Lea","last_name":"Martin"},{"address":"Pune","age":30,"emp_id":3,"first_name":"Alice","last_name":"Trentor"},{"address":"Ney York","age":20,"emp_id":2,"first_name":"Catalina","last_name":"Smith"},{"address":"Shamli","age":10,"emp_id":1,"first_name":"Marc","last_name":"Richards"}],"LastEvaluatedKey":{"emp_id":1,"offset":4}}`
+	queryTestCaseOutput11 = `{"Count":4,"Items":{"L":[{"address":{"S":"Silicon Valley"},"age":{"N":"40"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"},"last_name":{"S":"Martin"}},{"address":{"S":"Pune"},"age":{"N":"30"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}},{"address":{"S":"Ney York"},"age":{"N":"20"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}},{"address":{"S":"Shamli"},"age":{"N":"10"},"emp_id":{"N":"1"},"first_name":{"S":"Marc"},"last_name":{"S":"Richards"}}]},"LastEvaluatedKey":{"emp_id":{"N":"1"},"offset":{"N":"4"}}}`
 
-	queryTestCaseOutput12 = `{"Count":4,"Items":[{"address":"Silicon Valley","age":40,"emp_id":4,"first_name":"Lea","last_name":"Martin"},{"address":"Pune","age":30,"emp_id":3,"first_name":"Alice","last_name":"Trentor"},{"address":"Ney York","age":20,"emp_id":2,"first_name":"Catalina","last_name":"Smith"},{"address":"Shamli","age":10,"emp_id":1,"first_name":"Marc","last_name":"Richards"}],"LastEvaluatedKey":{"emp_id":1,"offset":4}}`
+	queryTestCaseOutput12 = `{"Count":4,"Items":{"L":[{"address":{"S":"Silicon Valley"},"age":{"N":"40"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"},"last_name":{"S":"Martin"}},{"address":{"S":"Pune"},"age":{"N":"30"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}},{"address":{"S":"Ney York"},"age":{"N":"20"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}},{"address":{"S":"Shamli"},"age":{"N":"10"},"emp_id":{"N":"1"},"first_name":{"S":"Marc"},"last_name":{"S":"Richards"}}]},"LastEvaluatedKey":{"emp_id":{"N":"1"},"offset":{"N":"4"}}}`
 
-	queryTestCaseOutput13 = `{"Count":5,"Items":[],"LastEvaluatedKey":null}`
+	queryTestCaseOutput13 = `{"Count":5,"Items":{"L":[]},"LastEvaluatedKey":null}`
 
-	queryTestCaseOutput14 = `{"Count":1,"Items":[],"LastEvaluatedKey":null}`
+	queryTestCaseOutput14 = `{"Count":1,"Items":{"L":[]},"LastEvaluatedKey":null}`
 
-	queryTestCaseOutput15 = `{"Count":1,"Items":[{"emp_id":3,"first_name":"Alice","last_name":"Trentor"}],"LastEvaluatedKey":null}`
+	queryTestCaseOutput15 = `{"Count":1,"Items":{"L":[{"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}}]},"LastEvaluatedKey":null}`
 
-	queryTestCaseOutput16 = `{"Count":1,"Items":[],"LastEvaluatedKey":null}`
+	queryTestCaseOutput16 = `{"Count":1,"Items":{"L":[]},"LastEvaluatedKey":null}`
 )
 
 func initFunc() *gin.Engine {
