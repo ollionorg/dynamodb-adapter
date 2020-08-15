@@ -64,13 +64,18 @@ type GetWithProjectionMeta struct {
 	DynamoObject             map[string]*dynamodb.AttributeValue `json:"dynamoObject"`
 }
 
+//BatchGetMeta struct
+type BatchGetMeta struct {
+	RequestItems map[string]BatchGetWithProjectionMeta `json:"RequestItems"`
+}
+
 // BatchGetWithProjectionMeta struct
 type BatchGetWithProjectionMeta struct {
 	TableName                string                                `json:"tableName"`
 	KeyArray                 []map[string]interface{}              `json:"keyArray"`
 	ProjectionExpression     string                                `json:"projectionExpression"`
 	ExpressionAttributeNames map[string]string                     `json:"expressionAttributeNames"`
-	DynamoObject             []map[string]*dynamodb.AttributeValue `json:"dynamoObject"`
+	Keys                     []map[string]*dynamodb.AttributeValue `json:"Keys"`
 }
 
 // Delete struct
