@@ -243,6 +243,124 @@ var (
 	queryTestCaseOutput16 = `{"Count":1,"Items":{"L":[]},"LastEvaluatedKey":null}`
 )
 
+//Test Data for Scan API
+var (
+	ScanTestCase1Name = "1: Wrong URL"
+	ScanTestCase1     = models.ScanMeta{
+		TableName: "employee",
+	}
+
+	ScanTestCase2Name = "2: Only Table Name passed"
+	ScanTestCase2     = models.ScanMeta{
+		TableName: "employee",
+	}
+	ScanTestCase2Output = `{"Count":5,"Items":{"L":[{"address":{"S":"Silicon Valley"},"age":{"N":"40"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"},"last_name":{"S":"Martin"}},{"address":{"S":"Pune"},"age":{"N":"30"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}},{"address":{"S":"Ney York"},"age":{"N":"20"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}},{"address":{"S":"Shamli"},"age":{"N":"10"},"emp_id":{"N":"1"},"first_name":{"S":"Marc"},"last_name":{"S":"Richards"}},{"address":{"S":"London"},"age":{"N":"50"},"emp_id":{"N":"5"},"first_name":{"S":"David"},"last_name":{"S":"Lomond"}}]},"LastEvaluatedKey":null}`
+
+	ScanTestCase3Name = "3: With Limit Attribute"
+	ScanTestCase3     = models.ScanMeta{
+		TableName: "employee",
+		Limit:     3,
+	}
+	ScanTestCase3Output = `{"Count":3,"Items":{"L":[{"address":{"S":"Silicon Valley"},"age":{"N":"40"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"},"last_name":{"S":"Martin"}},{"address":{"S":"Pune"},"age":{"N":"30"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}},{"address":{"S":"Ney York"},"age":{"N":"20"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}}]},"LastEvaluatedKey":{"emp_id":{"N":"2"},"offset":{"N":"3"}}}`
+
+	ScanTestCase4Name = "4: With Projection Expression"
+	ScanTestCase4     = models.ScanMeta{
+		TableName:            "employee",
+		ProjectionExpression: "address, emp_id, first_name",
+	}
+	ScanTestCase4Output = `{"Count":5,"Items":{"L":[{"address":{"S":"Silicon Valley"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"}},{"address":{"S":"Pune"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"}},{"address":{"S":"Ney York"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"}},{"address":{"S":"Shamli"},"emp_id":{"N":"1"},"first_name":{"S":"Marc"}},{"address":{"S":"London"},"emp_id":{"N":"5"},"first_name":{"S":"David"}}]},"LastEvaluatedKey":null}`
+
+	ScanTestCase5Name = "5: With Projection Expression & limit"
+	ScanTestCase5     = models.ScanMeta{
+		TableName:            "employee",
+		Limit:                3,
+		ProjectionExpression: "address, emp_id, first_name",
+	}
+	ScanTestCase5Output = `{"Count":3,"Items":{"L":[{"address":{"S":"Silicon Valley"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"}},{"address":{"S":"Pune"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"}},{"address":{"S":"Ney York"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"}}]},"LastEvaluatedKey":{"emp_id":{"N":"2"},"offset":{"N":"3"}}}`
+
+	ScanTestCase6Name = "6: Projection Expression without ExpressionAttributeNames"
+	ScanTestCase6     = models.ScanMeta{
+		TableName: "employee",
+		Limit:     3,
+		ExclusiveStartKey: map[string]*dynamodb.AttributeValue{
+			"emp_id": {N: aws.String("4")},
+			"offset": {N: aws.String("3")},
+		},
+		ProjectionExpression: "address, #ag, emp_id, first_name, last_name",
+	}
+	ScanTestCase6Output = `{"Count":2,"Items":{"L":[{"address":{"S":"London"},"emp_id":{"N":"5"},"first_name":{"S":"David"},"last_name":{"S":"Lomond"}},{"address":{"S":"Pune"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}}]},"LastEvaluatedKey":null}`
+
+	ScanTestCase7Name = "7: Projection Expression with ExpressionAttributeNames"
+	ScanTestCase7     = models.ScanMeta{
+		TableName:                "employee",
+		ExpressionAttributeNames: map[string]string{"#ag": "age"},
+		Limit:                    3,
+		ProjectionExpression:     "address, #ag, emp_id, first_name, last_name",
+	}
+	ScanTestCase7Output = `{"Count":3,"Items":{"L":[{"address":{"S":"Silicon Valley"},"age":{"N":"40"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"},"last_name":{"S":"Martin"}},{"address":{"S":"Pune"},"age":{"N":"30"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}},{"address":{"S":"Ney York"},"age":{"N":"20"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}}]},"LastEvaluatedKey":{"emp_id":{"N":"2"},"offset":{"N":"3"}}}`
+
+	//400 Bad request
+	ScanTestCase8Name = "8: Filter Expression without ExpressionAttributeValues"
+	ScanTestCase8     = models.ScanMeta{
+		TableName: "employee",
+		ExclusiveStartKey: map[string]*dynamodb.AttributeValue{
+			"emp_id": {N: aws.String("4")},
+			"offset": {N: aws.String("3")},
+		},
+		FilterExpression: "age > :val1",
+	}
+
+	ScanTestCase9Name = "9: Filter Expression with ExpressionAttributeValues"
+	ScanTestCase9     = models.ScanMeta{
+		TableName: "employee",
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":val1": {N: aws.String("10")},
+		},
+		FilterExpression: "age > :val1",
+	}
+	ScanTestCase9Output = `{"Count":4,"Items":{"L":[{"address":{"S":"London"},"age":{"N":"50"},"emp_id":{"N":"5"},"first_name":{"S":"David"},"last_name":{"S":"Lomond"}},{"address":{"S":"Pune"},"age":{"N":"30"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}},{"address":{"S":"Silicon Valley"},"age":{"N":"40"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"},"last_name":{"S":"Martin"}},{"address":{"S":"Ney York"},"age":{"N":"20"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}}]},"LastEvaluatedKey":null}`
+
+	//400 bad request
+	ScanTestCase10Name = "10: FilterExpression & ExpressionAttributeValues without ExpressionAttributeNames"
+	ScanTestCase10     = models.ScanMeta{
+		TableName: "employee",
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":val1": {N: aws.String("10")},
+		},
+		FilterExpression: "#ag > :val1",
+	}
+
+	ScanTestCase11Name = "11: FilterExpression & ExpressionAttributeValues with ExpressionAttributeNames"
+	ScanTestCase11     = models.ScanMeta{
+		TableName:                "employee",
+		ExpressionAttributeNames: map[string]string{"#ag": "age"},
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":val1": {N: aws.String("10")},
+		},
+		FilterExpression: "age > :val1",
+	}
+	ScanTestCase11Output = `{"Count":4,"Items":{"L":[{"address":{"S":"London"},"age":{"N":"50"},"emp_id":{"N":"5"},"first_name":{"S":"David"},"last_name":{"S":"Lomond"}},{"address":{"S":"Pune"},"age":{"N":"30"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}},{"address":{"S":"Silicon Valley"},"age":{"N":"40"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"},"last_name":{"S":"Martin"}},{"address":{"S":"Ney York"},"age":{"N":"20"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}}]},"LastEvaluatedKey":null}`
+
+	ScanTestCase12Name = "12: With ExclusiveStartKey"
+	ScanTestCase12     = models.ScanMeta{
+		TableName: "employee",
+		ExclusiveStartKey: map[string]*dynamodb.AttributeValue{
+			"emp_id": {N: aws.String("4")},
+			"offset": {N: aws.String("3")},
+		},
+		Limit: 3,
+	}
+	ScanTestCase12Output = `{"Count":2,"Items":{"L":[{"address":{"S":"London"},"age":{"N":"50"},"emp_id":{"N":"5"},"first_name":{"S":"David"},"last_name":{"S":"Lomond"}},{"address":{"S":"Pune"},"age":{"N":"30"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}}]},"LastEvaluatedKey":null}`
+
+	ScanTestCase13Name = "13: With Count"
+	ScanTestCase13     = models.ScanMeta{
+		TableName: "employee",
+		Limit:     3,
+		Select:    "COUNT",
+	}
+	ScanTestCase13Output = `{"Count":5,"Items":{"L":[]},"LastEvaluatedKey":null}`
+)
+
 func initFunc() *gin.Engine {
 	box := rice.MustFindBox("config-files")
 
@@ -261,6 +379,27 @@ func initFunc() *gin.Engine {
 	})
 	api.InitAPI(r)
 	return r
+}
+
+func createPostTestCase(name, url, outputString string, input interface{}) apitesting.APITestCase {
+	return apitesting.APITestCase{
+		Name:    name,
+		ReqType: "POST",
+		PopulateHeaders: func(ctx context.Context, t *testing.T) map[string]string {
+			return map[string]string{
+				"Content-Type": "application/json",
+			}
+		},
+		ResourcePath: func(ctx context.Context, t *testing.T) string { return url },
+		PopulateJSON: func(ctx context.Context, t *testing.T) interface{} {
+			return input
+		},
+		ExpHTTPStatus: http.StatusOK,
+		ValidateResponse: func(ctx context.Context, t *testing.T, resp *httpexpect.Response) context.Context {
+			resp.Body().Equal(outputString)
+			return ctx
+		},
+	}
 }
 
 func TestQueryAPI(t *testing.T) {
@@ -345,23 +484,66 @@ func TestQueryAPI(t *testing.T) {
 	apitest.RunTests(t, tests)
 }
 
-func createPostTestCase(name, url, outputString string, input interface{}) apitesting.APITestCase {
-	return apitesting.APITestCase{
-		Name:    name,
-		ReqType: "POST",
-		PopulateHeaders: func(ctx context.Context, t *testing.T) map[string]string {
-			return map[string]string{
-				"Content-Type": "application/json",
-			}
-		},
-		ResourcePath: func(ctx context.Context, t *testing.T) string { return url },
-		PopulateJSON: func(ctx context.Context, t *testing.T) interface{} {
-			return input
-		},
-		ExpHTTPStatus: http.StatusOK,
-		ValidateResponse: func(ctx context.Context, t *testing.T, resp *httpexpect.Response) context.Context {
-			resp.Body().Equal(outputString)
-			return ctx
+func TestScanAPI(t *testing.T) {
+	apitest := apitesting.APITest{
+		// APIEndpointURL: apiURL + "/" + version,
+		GetHTTPHandler: func(ctx context.Context, t *testing.T) http.Handler {
+			return initFunc()
 		},
 	}
+	tests := []apitesting.APITestCase{
+		{
+			Name:    ScanTestCase1Name,
+			ReqType: "POST",
+			PopulateHeaders: func(ctx context.Context, t *testing.T) map[string]string {
+				return map[string]string{
+					"Content-Type": "application/json",
+				}
+			},
+			ResourcePath: func(ctx context.Context, t *testing.T) string { return "/v1/Sca" },
+			PopulateJSON: func(ctx context.Context, t *testing.T) interface{} {
+				return ScanTestCase1
+			},
+			ExpHTTPStatus: http.StatusNotFound,
+		},
+		{
+			Name:    ScanTestCase8Name,
+			ReqType: "POST",
+			PopulateHeaders: func(ctx context.Context, t *testing.T) map[string]string {
+				return map[string]string{
+					"Content-Type": "application/json",
+				}
+			},
+			ResourcePath: func(ctx context.Context, t *testing.T) string { return "/v1/Scan" },
+			PopulateJSON: func(ctx context.Context, t *testing.T) interface{} {
+				return ScanTestCase8
+			},
+			ExpHTTPStatus: http.StatusBadRequest,
+		},
+		{
+			Name:    ScanTestCase10Name,
+			ReqType: "POST",
+			PopulateHeaders: func(ctx context.Context, t *testing.T) map[string]string {
+				return map[string]string{
+					"Content-Type": "application/json",
+				}
+			},
+			ResourcePath: func(ctx context.Context, t *testing.T) string { return "/v1/Scan" },
+			PopulateJSON: func(ctx context.Context, t *testing.T) interface{} {
+				return ScanTestCase10
+			},
+			ExpHTTPStatus: http.StatusBadRequest,
+		},
+		createPostTestCase(ScanTestCase2Name, "/v1/Query", ScanTestCase2Output, ScanTestCase2),
+		createPostTestCase(ScanTestCase3Name, "/v1/Query", ScanTestCase3Output, ScanTestCase3),
+		createPostTestCase(ScanTestCase4Name, "/v1/Query", ScanTestCase4Output, ScanTestCase4),
+		createPostTestCase(ScanTestCase5Name, "/v1/Query", ScanTestCase5Output, ScanTestCase5),
+		createPostTestCase(ScanTestCase6Name, "/v1/Query", ScanTestCase6Output, ScanTestCase6),
+		createPostTestCase(ScanTestCase7Name, "/v1/Query", ScanTestCase7Output, ScanTestCase7),
+		createPostTestCase(ScanTestCase9Name, "/v1/Query", ScanTestCase9Output, ScanTestCase9),
+		createPostTestCase(ScanTestCase11Name, "/v1/Query", ScanTestCase11Output, ScanTestCase11),
+		createPostTestCase(ScanTestCase12Name, "/v1/Query", ScanTestCase12Output, ScanTestCase12),
+		createPostTestCase(ScanTestCase13Name, "/v1/Query", ScanTestCase13Output, ScanTestCase13),
+	}
+	apitest.RunTests(t, tests)
 }
