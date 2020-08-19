@@ -574,6 +574,92 @@ var (
 	ScanTestCase13Output = `{"Count":5,"Items":{"L":[]},"LastEvaluatedKey":null}`
 )
 
+var (
+	DeleteItemTestCase1Name = "1: Only TableName passed"
+	DeleteItemTestCase1     = models.Delete{
+		TableName: "employee",
+	}
+
+	DeleteItemTestCase2Name = "2: Correct Key passed"
+	DeleteItemTestCase2     = models.Delete{
+		TableName: "employee",
+		Key: map[string]*dynamodb.AttributeValue{
+			"emp_id": {N: aws.String("2")},
+		},
+	}
+	DeleteItemTestCase2Output = `{"Attributes":{"address":{"S":"Ney York"},"age":{"N":"20"},"emp_id":{"N":"2"},"first_name":{"S":"Catalina"},"last_name":{"S":"Smith"}}}`
+
+	DeleteItemTestCase3Name = "3: Icorrect Key passed"
+	DeleteItemTestCase3     = models.Delete{
+		TableName: "employee",
+		Key: map[string]*dynamodb.AttributeValue{
+			"emp_id": {N: aws.String("2")},
+		},
+	}
+
+	DeleteItemTestCase4Name = "4: ConditionExpression with ExpressionAttributeValues"
+	DeleteItemTestCase4     = models.Delete{
+		TableName: "employee",
+		Key: map[string]*dynamodb.AttributeValue{
+			"emp_id": {N: aws.String("3")},
+		},
+		ConditionExpression: "age > :val2",
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":val2": {N: aws.String("9")},
+		},
+	}
+	DeleteItemTestCase4Output = `{"Attributes":{"address":{"S":"Pune"},"age":{"N":"30"},"emp_id":{"N":"3"},"first_name":{"S":"Alice"},"last_name":{"S":"Trentor"}}}`
+
+	DeleteItemTestCase5Name = "5: ConditionExpressionNames with ExpressionAttributeNames & ExpressionAttributeValues"
+	DeleteItemTestCase5     = models.Delete{
+		TableName: "employee",
+		Key: map[string]*dynamodb.AttributeValue{
+			"emp_id": {N: aws.String("4")},
+		},
+		ConditionExpression: "#ag > :val2",
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":val2": {N: aws.String("19")},
+		},
+		ExpressionAttributeNames: map[string]string{
+			"#ag": "age",
+		},
+	}
+	DeleteItemTestCase5Output = `{"Attributes":{"address":{"S":"Silicon Valle"},"age":{"N":"40"},"emp_id":{"N":"4"},"first_name":{"S":"Lea"},"last_name":{"S":"Martin"}}}`
+
+	DeleteItemTestCase6Name = "6: ConditionExpressionNames without ExpressionAttributeValues"
+	DeleteItemTestCase6     = models.Delete{
+		TableName: "employee",
+		Key: map[string]*dynamodb.AttributeValue{
+			"emp_id": {N: aws.String("2")},
+		},
+		ConditionExpression: "#ag > :val2",
+		ExpressionAttributeNames: map[string]string{
+			"#ag": "age",
+		},
+	}
+
+	DeleteItemTestCase7Name = "7: ConditionExpressionNames without ExpressionAttributeNames"
+	DeleteItemTestCase7     = models.Delete{
+		TableName: "employee",
+		Key: map[string]*dynamodb.AttributeValue{
+			"emp_id": {N: aws.String("2")},
+		},
+		ConditionExpression: "#ag > :val2",
+		ExpressionAttributeNames: map[string]string{
+			"#ag": "age",
+		},
+	}
+
+	DeleteItemTestCase8Name = "8: ConditionExpressionNames with ExpressionAttributeNames & ExpressionAttributeValue"
+	DeleteItemTestCase8     = models.Delete{
+		TableName: "employee",
+		Key: map[string]*dynamodb.AttributeValue{
+			"emp_id": {N: aws.String("2")},
+		},
+		ConditionExpression: "#ag > :val2",
+	}
+)
+
 func initFunc() *gin.Engine {
 	box := rice.MustFindBox("config-files")
 
@@ -612,6 +698,23 @@ func createPostTestCase(name, url, outputString string, input interface{}) apite
 			resp.Body().Equal(outputString)
 			return ctx
 		},
+	}
+}
+
+func createStatusCheckPostTestCase(name, url string, httpStatus int, input interface{}) apitesting.APITestCase {
+	return apitesting.APITestCase{
+		Name:    name,
+		ReqType: "POST",
+		PopulateHeaders: func(ctx context.Context, t *testing.T) map[string]string {
+			return map[string]string{
+				"Content-Type": "application/json",
+			}
+		},
+		ResourcePath: func(ctx context.Context, t *testing.T) string { return url },
+		PopulateJSON: func(ctx context.Context, t *testing.T) interface{} {
+			return input
+		},
+		ExpHTTPStatus: httpStatus,
 	}
 }
 
@@ -864,6 +967,26 @@ func TestScanAPI(t *testing.T) {
 		createPostTestCase(ScanTestCase11Name, "/v1/Query", ScanTestCase11Output, ScanTestCase11),
 		createPostTestCase(ScanTestCase12Name, "/v1/Query", ScanTestCase12Output, ScanTestCase12),
 		createPostTestCase(ScanTestCase13Name, "/v1/Query", ScanTestCase13Output, ScanTestCase13),
+	}
+	apitest.RunTests(t, tests)
+}
+
+func TestPutItemAPI(t *testing.T) {
+	apitest := apitesting.APITest{
+		// APIEndpointURL: apiURL + "/" + version,
+		GetHTTPHandler: func(ctx context.Context, t *testing.T) http.Handler {
+			return initFunc()
+		},
+	}
+	tests := []apitesting.APITestCase{
+		createStatusCheckPostTestCase(DeleteItemTestCase1Name, "/v1/DeleteItem", http.StatusBadRequest, DeleteItemTestCase1),
+		createStatusCheckPostTestCase(DeleteItemTestCase6Name, "/v1/DeleteItem", http.StatusBadRequest, DeleteItemTestCase6),
+		createStatusCheckPostTestCase(DeleteItemTestCase7Name, "/v1/DeleteItem", http.StatusBadRequest, DeleteItemTestCase7),
+		createStatusCheckPostTestCase(DeleteItemTestCase8Name, "/v1/DeleteItem", http.StatusBadRequest, DeleteItemTestCase8),
+		createPostTestCase(DeleteItemTestCase2Name, "/v1/DeleteItem", DeleteItemTestCase2Output, DeleteItemTestCase2),
+		createStatusCheckPostTestCase(DeleteItemTestCase3Name, "/v1/DeleteItem", http.StatusOK, DeleteItemTestCase3),
+		createPostTestCase(DeleteItemTestCase4Name, "/v1/DeleteItem", DeleteItemTestCase4Output, DeleteItemTestCase4),
+		createPostTestCase(DeleteItemTestCase5Name, "/v1/DeleteItem", DeleteItemTestCase5Output, DeleteItemTestCase5),
 	}
 	apitest.RunTests(t, tests)
 }
