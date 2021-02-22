@@ -199,6 +199,12 @@ func queryResponse(query models.Query, c *gin.Context) {
 				c.JSON(errors.HTTPResponse(err, "LastEvaluatedKeyChangeError"))
 			}
 		}
+		if _, ok := changedOutput["Items"].(map[string]interface{})["L"]; ok {
+			changedOutput = map[string]interface{}{
+				"Count": changedOutput["Count"],
+				"Items": changedOutput["Items"].(map[string]interface{})["L"],
+			}
+		}
 
 		c.JSON(http.StatusOK, changedOutput)
 	} else {
