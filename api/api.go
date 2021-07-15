@@ -26,5 +26,4 @@ import (
 func InitAPI(g *gin.Engine) {
 	r := g.Group("/v1")
 	v1.InitDBAPI(r)
-
 }

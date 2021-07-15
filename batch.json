@@ -1,0 +1,90 @@
+{
+    "RequestItems": {
+        "employee": [
+            {
+                "PutRequest": {
+                    "Item": {
+                        "emp_id": {"N": "1"},
+                        "age": "10",
+                        "address": "Barcelona",
+                        "first_name": "Marc",
+                        "last_name": "Richards"
+                    }
+                }
+            },
+            {
+                "PutRequest": {
+                    "Item": {
+                        "emp_id": "2",
+                        "age": "20",
+                        "address": "Ney York",
+                        "first_name": "Catalina",
+                        "last_name": "Smith"
+                    }
+                }
+            },
+            {
+                "PutRequest": {
+                    "Item": {
+                        "emp_id": "3",
+                        "age": "30",
+                        "address": "Pune",
+                        "first_name": "Alice",
+                        "last_name": "Trentor"
+                    }
+                }
+            },
+            {
+                "PutRequest": {
+                    "Item": {
+                        "emp_id": "4",
+                        "age": "40",
+                        "address": "Silicon Valley",
+                        "first_name": "Lea",
+                        "last_name": "Martin"
+                    }
+                }
+            },
+            {
+                "PutRequest": {
+                    "Item": {
+                        "emp_id": "5",
+                        "age": "50",
+                        "address": "London",
+                        "first_name": "David",
+                        "last_name": "Lomond"
+                    }
+                }
+            }
+        ],
+        "department": [
+            {
+                "PutRequest": {
+                    "Item": {
+                        "d_id": "100",
+                        "d_name": "Engineering",
+                        "d_specialization": "CSE, ECE, Civil"
+                    }
+                }
+            },
+            {
+                "PutRequest": {
+                    "Item": {
+                        "d_id": "200",
+                        "d_name": "Arts",
+                        "d_specialization": "BA"
+                    }
+                }
+            },
+            {
+                "PutRequest": {
+                    "Item": {
+                        "d_id": "300",
+                        "d_name": "Culture",
+                        "d_specialization": "History"
+                    }
+                }
+            }
+        ]
+    }
+}

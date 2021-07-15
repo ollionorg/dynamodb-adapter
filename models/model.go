@@ -97,6 +97,11 @@ type Delete struct {
 	ExpressionAttributeNames  map[string]string                   `json:"ExpressionAttributeNames"`
 }
 
+// DescribeTable struct
+type DescribeTable struct {
+	TableName string `json:"TableName"`
+}
+
 // BulkDelete struct
 type BulkDelete struct {
 	TableName          string                                `json:"TableName"`

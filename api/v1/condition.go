@@ -72,7 +72,7 @@ func after(value string, a string) string {
 	if adjustedPos >= len(value) {
 		return ""
 	}
-	return value[adjustedPos:len(value)]
+	return value[adjustedPos:]
 }
 
 func deleteEmpty(s []string) []string {
@@ -230,7 +230,7 @@ func performOperation(ctx context.Context, action string, actionValue string, up
 		m, expr := parseActionValue(actionValue, updateAtrr, true)
 		res, err := services.Del(ctx, updateAtrr.TableName, updateAtrr.PrimaryKeyMap, updateAtrr.ConditionExpression, m, expr)
 		return res, m, err
-	case action == "SET":
+	case action == "SET" || action == "set":
 		// Update data in table
 		m, expr := parseActionValue(actionValue, updateAtrr, false)
 		res, err := services.Put(ctx, updateAtrr.TableName, m, expr, updateAtrr.ConditionExpression, updateAtrr.ExpressionAttributeMap, oldRes)
@@ -716,7 +716,9 @@ func convertSlice(output map[string]interface{}, v reflect.Value) error {
 			if err != nil {
 				return err
 			}
-			listVal = append(listVal, elem)
+			listVal = append(listVal, map[string]interface{}{
+				"M": elem,
+			})
 			count++
 		}
 		output["L"] = listVal

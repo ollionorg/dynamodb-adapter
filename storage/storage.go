@@ -62,16 +62,15 @@ func initSpannerDriver(instance string, m map[string]*gjson.Result) *spanner.Cli
 	conf := spanner.ClientConfig{}
 
 	str := "projects/" + config.ConfigurationMap.GoogleProjectID + "/instances/" + instance + "/databases/" + config.ConfigurationMap.SpannerDb
-	Client, err := spanner.NewClientWithConfig(context.Background(), str, conf)
+	client, err := spanner.NewClientWithConfig(context.Background(), str, conf)
 	if err != nil {
 		logger.LogFatal(err)
 	}
-	return Client
+	return client
 }
 
 // InitializeDriver - this will Initialize databases object in global map
 func InitializeDriver() {
-
 	storage = new(Storage)
 	storage.spannerClient = make(map[string]*spanner.Client)
 	config := map[string]*gjson.Result{}

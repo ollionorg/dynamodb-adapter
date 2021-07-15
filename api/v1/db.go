@@ -34,22 +34,43 @@ import (
 
 // InitDBAPI - routes for apis
 func InitDBAPI(g *gin.RouterGroup) {
-
 	r := g.Group("/")
-	r.POST("/GetItem", GetItemMeta)
-	r.POST("/BatchGetItem", BatchGetItem)
+	r.POST("/dispatch", DispatchCall)
+}
 
-	r.POST("/Query", QueryTable)
+// DispatchCall to relevant handlers
+func DispatchCall(c *gin.Context) {
+	var header, ok = c.Request.Header["X-Amz-Target"]
+	if !ok {
+		c.JSON(errors.New("ValidationException", "invalid Target header").
+			HTTPResponse("X-Amz-Target Header not found"))
+		return
+	}
 
-	r.POST("/PutItem", UpdateMeta)
-	r.POST("/DeleteItem", DeleteItem)
-
-	r.POST("/Scan", Scan)
-
-	r.POST("/UpdateItem", Update)
-
-	r.POST("/BatchWriteItem", BatchWriteItem)
-
+	var target = strings.Split(header[0], ".")[1]
+	switch target {
+	case "BatchGetItem":
+		BatchGetItem(c)
+	case "BatchWriteItem":
+		BatchWriteItem(c)
+	case "DeleteItem":
+		DeleteItem(c)
+	case "DescribeTable":
+		DescribeTable(c)
+	case "GetItem":
+		GetItemMeta(c)
+	case "PutItem":
+		UpdateMeta(c)
+	case "Query":
+		QueryTable(c)
+	case "Scan":
+		Scan(c)
+	case "UpdateItem":
+		Update(c)
+	default:
+		c.JSON(errors.New("ValidationException", "invalid Target header").
+			HTTPResponse("X-Amz-Target Header not supported"))
+	}
 }
 
 func enrichSpan(c *gin.Context, span opentracing.Span, query models.Query) opentracing.Span {
@@ -93,42 +114,46 @@ func UpdateMeta(c *gin.Context) {
 	var meta models.Meta
 	if err := c.ShouldBindJSON(&meta); err != nil {
 		c.JSON(errors.New("ValidationException", err).HTTPResponse(meta))
-	} else {
-		if allow := services.MayIReadOrWrite(meta.TableName, true, "UpdateMeta"); !allow {
-			c.JSON(http.StatusOK, gin.H{})
-			return
-		}
-		logger.LogDebug(meta)
-		meta.AttrMap, err = ConvertDynamoToMap(meta.TableName, meta.Item)
-		if err != nil {
-			c.JSON(errors.New("ValidationException", err).HTTPResponse(meta))
-			return
-		}
-		meta.ExpressionAttributeMap, err = ConvertDynamoToMap(meta.TableName, meta.ExpressionAttributeValues)
-		if err != nil {
-			c.JSON(errors.New("ValidationException", err).HTTPResponse(meta))
-			return
-		}
-
-		for k, v := range meta.ExpressionAttributeNames {
-			meta.ConditionExpression = strings.ReplaceAll(meta.ConditionExpression, k, v)
-		}
-
-		res, err := put(c.Request.Context(), meta.TableName, meta.AttrMap, nil, meta.ConditionExpression, meta.ExpressionAttributeMap)
-		if err != nil {
-			c.JSON(errors.HTTPResponse(err, meta))
-		} else {
-			var output map[string]interface{}
-			if meta.ReturnValues == "NONE" {
-				output = nil
-			} else {
-				output, _ = ChangeMaptoDynamoMap(ChangeResponseToOriginalColumns(meta.TableName, res))
-				output = map[string]interface{}{"Attributes": output}
-			}
-
-			c.JSON(http.StatusOK, output)
-		}
+		return
 	}
+	fmt.Printf("META %#v\n", meta)
+
+	if allow := services.MayIReadOrWrite(meta.TableName, true, "UpdateMeta"); !allow {
+		c.JSON(http.StatusOK, gin.H{})
+		return
+	}
+
+	meta.AttrMap, err = ConvertDynamoToMap(meta.TableName, meta.Item)
+	if err != nil {
+		c.JSON(errors.New("ValidationException", err).HTTPResponse(meta))
+		return
+	}
+	meta.ExpressionAttributeMap, err = ConvertDynamoToMap(meta.TableName, meta.ExpressionAttributeValues)
+	if err != nil {
+		c.JSON(errors.New("ValidationException", err).HTTPResponse(meta))
+		return
+	}
+
+	for k, v := range meta.ExpressionAttributeNames {
+		meta.ConditionExpression = strings.ReplaceAll(meta.ConditionExpression, k, v)
+	}
+
+	res, err := put(c.Request.Context(), meta.TableName, meta.AttrMap, nil, meta.ConditionExpression, meta.ExpressionAttributeMap)
+	if err != nil {
+		c.JSON(errors.HTTPResponse(err, meta))
+		return
+	}
+
+	var output map[string]interface{}
+	if meta.ReturnValues == "NONE" {
+		output = nil
+	} else {
+		output, _ = ChangeMaptoDynamoMap(ChangeResponseToOriginalColumns(meta.TableName, res))
+		output = map[string]interface{}{"Attributes": output}
+	}
+
+	c.JSON(http.StatusOK, output)
+
 }
 
 func put(ctx context.Context, tableName string, putObj map[string]interface{}, expr *models.UpdateExpressionCondition, conditionExp string, expressionAttr map[string]interface{}) (map[string]interface{}, error) {
@@ -197,6 +222,13 @@ func queryResponse(query models.Query, c *gin.Context) {
 			changedOutput["LastEvaluatedKey"], err = ChangeMaptoDynamoMap(changedOutput["LastEvaluatedKey"])
 			if err != nil {
 				c.JSON(errors.HTTPResponse(err, "LastEvaluatedKeyChangeError"))
+			}
+		}
+		if _, ok := changedOutput["Items"].(map[string]interface{})["L"]; ok {
+			changedOutput = map[string]interface{}{
+				"Count":        changedOutput["Count"],
+				"Items":        changedOutput["Items"].(map[string]interface{})["L"],
+				"ScannedCount": changedOutput["ScannedCount"],
 			}
 		}
 
@@ -429,6 +461,80 @@ func DeleteItem(c *gin.Context) {
 			c.JSON(errors.HTTPResponse(err, deleteItem))
 		}
 	}
+}
+
+// DescribeTable  ...
+// @Description Describe Table configurations
+// @Summary Describe Table configurations
+func DescribeTable(c *gin.Context) {
+	defer PanicHandler(c)
+	defer c.Request.Body.Close()
+	carrier := opentracing.HTTPHeadersCarrier(c.Request.Header)
+	spanContext, err := opentracing.GlobalTracer().Extract(opentracing.HTTPHeaders, carrier)
+	if err != nil || spanContext == nil {
+		logger.LogDebug(err)
+	}
+	span, ctx := opentracing.StartSpanFromContext(c.Request.Context(), c.Request.URL.RequestURI(), opentracing.ChildOf(spanContext))
+	c.Request = c.Request.WithContext(ctx)
+	defer span.Finish()
+	span = addParentSpanID(c, span)
+	var meta models.DescribeTable
+	if err := c.ShouldBindJSON(&meta); err != nil {
+		c.JSON(errors.New("ValidationException", err).HTTPResponse(meta))
+		return
+	}
+
+	conf, err := config.GetTableAttributeConf(meta.TableName)
+	if err != nil {
+		c.JSON(errors.HTTPResponse(err, meta))
+		return
+	}
+
+	var resp = map[string]interface{}{
+		"TableStatus":          "ACTIVE",
+		"AttributeDefinitions": []map[string]string{},
+		"KeySchema": []map[string]string{
+			{"AttributeName": conf.PartitionKey, "KeyType": "HASH"},
+		},
+	}
+	if conf.SortKey != "" {
+		resp["KeySchema"] = append(resp["KeySchema"].([]map[string]string), map[string]string{
+			"AttributeName": conf.SortKey,
+			"KeyType":       "RANGE",
+		})
+	}
+
+	for k, v := range conf.AttributeTypes {
+		resp["AttributeDefinitions"] = append(resp["AttributeDefinitions"].([]map[string]string),
+			map[string]string{
+				"AttributeName": k,
+				"AttributeType": v,
+			},
+		)
+	}
+	if conf.Indices != nil {
+		resp["GlobalSecondaryIndexes"] = []map[string]interface{}{}
+		for k, v := range conf.Indices {
+			var index = map[string]interface{}{
+				"IndexName": k,
+				"KeySchema": []map[string]string{
+					{"AttributeName": v.PartitionKey, "KeyType": "HASH"},
+				},
+				"Projection": map[string]string{
+					"ProjectionType": "ALL",
+				},
+			}
+			if v.SortKey != "" {
+				index["KeySchema"] = append(index["KeySchema"].([]map[string]string), map[string]string{
+					"AttributeName": v.SortKey, "KeyType": "RANGE",
+				})
+			}
+			resp["GlobalSecondaryIndexes"] = append(resp["GlobalSecondaryIndexes"].([]map[string]interface{}), index)
+		}
+	}
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"Table": resp,
+	})
 }
 
 // Scan record from table

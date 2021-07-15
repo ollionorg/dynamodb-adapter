@@ -35,6 +35,23 @@ type Configuration struct {
 	QueryLimit      int64
 }
 
+// Index struct
+type Index struct {
+	PartitionKey string
+	SortKey      string
+}
+
+// TableAttributeConfig struct
+type TableAttributeConfig struct {
+	PartitionKey   string
+	SortKey        string
+	AttributeTypes map[string]string
+	Indices        map[string]Index
+}
+
+// Tables in spanner
+var Tables map[string]TableAttributeConfig
+
 var once sync.Once
 
 // ConfigurationMap pointer
@@ -91,6 +108,11 @@ func InitConfig(box *rice.Box) {
 			if err != nil {
 				logger.LogFatal(err)
 			}
+			err = json.Unmarshal(ba, &Tables)
+			if err != nil {
+				logger.LogFatal(err)
+			}
+
 			ba, err = box.Bytes("staging/config-staging.json")
 			if err != nil {
 				logger.LogFatal(err)
@@ -111,9 +133,7 @@ func InitConfig(box *rice.Box) {
 			for k, v := range tmp {
 				models.SpannerTableMap[changeTableNameForSP(k)] = v
 			}
-
 		}
-
 	})
 }
 
@@ -133,6 +153,15 @@ func GetTableConf(tableName string) (models.TableConfig, error) {
 		return tableConf, nil
 	}
 	return models.TableConfig{}, errors.New("ResourceNotFoundException", tableName)
+}
+
+// GetTableAttributeConf returns the configurations associated with a table
+func GetTableAttributeConf(tableName string) (*TableAttributeConfig, error) {
+	conf, ok := Tables[tableName]
+	if !ok {
+		return nil, errors.New("ResourceNotFoundException", tableName)
+	}
+	return &conf, nil
 }
 
 // changeTableNameForSP - ReplaceAll the hyphens (-) with underscore for giver string

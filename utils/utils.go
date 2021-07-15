@@ -61,6 +61,7 @@ func CreateConditionExpression(condtionExpression string, expressionAttr map[str
 	condtionExpression = strings.TrimSpace(condtionExpression)
 	condtionExpression = strings.ReplaceAll(condtionExpression, "( ", "(")
 	condtionExpression = strings.ReplaceAll(condtionExpression, " )", ")")
+	condtionExpression = strings.ReplaceAll(condtionExpression, " (", "(")
 	tokens := strings.Split(condtionExpression, " ")
 	sb := strings.Builder{}
 	evalTokens := []string{}

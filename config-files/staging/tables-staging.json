@@ -1,20 +1,62 @@
 {
-    "tableName":{
-        "partitionKey":"primary key or Partition key",
-        "sortKey": "sorting key of dynamoDB adapter",
+    "users":{
+        "partitionKey":"first_name",
+        "sortKey": "email",
         "attributeTypes": {
-			"ColInt64": "N",
-            "ColString": "S",
-            "ColBytes": "B",
-            "ColBool": "BOOL",
-            "ColDate": "S",
-            "ColTimestamp": "S"
+            "first_name":"S",
+            "last_name":"S",
+            "country":"S",
+            "email":"S",
+            "age": "N"
         },
-        "indices": { 
-			"indexName1": {
-				"sortKey": "sort key for indexName1",
-				"partitionKey": "partition key for indexName1"
-			}
+        "indices": {
+            "country_age_index": {
+                "partitionKey": "country",
+                "sortKey": "age"
+            }
+        }
+    },
+    "products":{
+        "partitionKey":"name",
+        "sortKey": "category",
+        "attributeTypes": {
+            "name":"S",
+            "category": "S",
+            "description":"S",
+            "price":"N"
+        },
+        "indices": {
+            "category_price_index": {
+                "partitionKey": "category",
+                "sortKey": "price"
+            }
+        }
+    },
+
+    "orion_notification": {
+        "partitionKey": "notification_id",
+        "attributeTypes": {
+            "notification_id": "S",
+            "notification_type": "S",
+            "category": "S",
+            "notification_read": "BOOL",
+            "notification_action": "S",
+            "priority": "N",
+            "callback": "S",
+            "payload": "S",
+            "notification_source": "S",
+            "sender": "S",
+            "notification_status": "S",
+            "associated_entities": "S",
+            "recipients": "L",
+            "created_by": "S",
+            "created_date": "S",
+            "updated_by": "S",
+            "updated_date": "S",
+            "read_source": "S",
+            "template_name": "S",
+            "template_id": "S",
+            "transaction_id": "S"
         }
     }
 }

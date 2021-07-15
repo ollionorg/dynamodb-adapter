@@ -12,23 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package integration
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"regexp"
 	"strings"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
-	rice "github.com/GeertJohan/go.rice"
-	"github.com/cloudspannerecosystem/dynamodb-adapter/config"
 	"google.golang.org/api/iterator"
 	adminpb "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 )
@@ -203,8 +199,18 @@ func spannerBatchPut(ctx context.Context, db string, m []*spanner.Mutation) erro
 	return nil
 }
 
+func insertInitialData(db string) error {
+	var ctx = context.Background()
+	client, err := spanner.NewClient(ctx, db)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	return nil
+}
+
 func verifySpannerSetup(db string) (int, error) {
-	ctx := context.Background()
+	var ctx = context.Background()
 	client, err := spanner.NewClient(ctx, db)
 	if err != nil {
 		return 0, err
@@ -225,88 +231,4 @@ func verifySpannerSetup(db string) (int, error) {
 		count++
 	}
 	return count, nil
-}
-
-func insertData(w io.Writer, db string) error {
-	ctx := context.Background()
-	client, err := spanner.NewClient(ctx, db)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-	empCols := []string{
-		"emp_id",
-		"first_name",
-		"last_name",
-		"age",
-		"address",
-	}
-	deptCols := []string{
-		"d_id",
-		"d_name",
-		"d_specialization",
-	}
-	m := []*spanner.Mutation{
-		spanner.InsertOrUpdate("employee", empCols, []interface{}{1.0, "Marc", "Richards", 10.0, "Barcelona"}),
-		spanner.InsertOrUpdate("employee", empCols, []interface{}{2.0, "Catalina", "Smith", 20.0, "Ney York"}),
-		spanner.InsertOrUpdate("employee", empCols, []interface{}{3.0, "Alice", "Trentor", 30.0, "Pune"}),
-		spanner.InsertOrUpdate("employee", empCols, []interface{}{4.0, "Lea", "Martin", 40.0, "Silicon Valley"}),
-		spanner.InsertOrUpdate("employee", empCols, []interface{}{5.0, "David", "Lomond", 50.0, "London"}),
-		spanner.InsertOrUpdate("department", deptCols, []interface{}{100.0, "Engineering", "CSE, ECE, Civil"}),
-		spanner.InsertOrUpdate("department", deptCols, []interface{}{200.0, "Arts", "BA"}),
-		spanner.InsertOrUpdate("department", deptCols, []interface{}{300.0, "Culture", "History"}),
-	}
-	_, err = client.Apply(ctx, m)
-	return err
-}
-
-func main() {
-	os.Setenv("SPANNER_DB_INSTANCE", "dynamodb-driver-test")
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/Users/sauravghosh/Projects/go/src/github.com/cldcvr/dynamodb-adapter-WIP/creds.json")
-	os.Setenv("ACTIVE_ENV", "STAGING")
-
-	box := rice.MustFindBox("../config-files")
-
-	// read the config variables
-	ba, err := box.Bytes("staging/config-staging.json")
-	if err != nil {
-		log.Fatal("error reading staging config json: ", err.Error())
-	}
-	var conf = &config.Configuration{}
-	if err = json.Unmarshal(ba, &conf); err != nil {
-		log.Fatal(err)
-	}
-
-	// read the spanner table configurations
-	var m = make(map[string]string)
-	ba, err = box.Bytes("staging/spanner-staging.json")
-	if err != nil {
-		log.Fatal("error reading spanner config json: ", err.Error())
-	}
-	if err = json.Unmarshal(ba, &m); err != nil {
-		log.Fatal(err)
-	}
-
-	databaseName := fmt.Sprintf(
-		"projects/%s/instances/%s/databases/%s", conf.GoogleProjectID, m["dynamodb_adapter_table_ddl"], conf.SpannerDb,
-	)
-
-	//w := log.Writer()
-	// if err := createDatabase(w, databaseName); err != nil {
-	// 	log.Fatal(err)
-	// }
-	if err := updateDynamodbAdapterTableDDL(databaseName); err != nil {
-		log.Fatal(err)
-	}
-	// _, err = verifySpannerSetup(databaseName)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// if count != expectedRowCount {
-	// 	log.Fatal(err)
-	// }
-
-	// if err := insertData(w, databaseName); err != nil {
-	// 	log.Fatal(err)
-	// }
 }

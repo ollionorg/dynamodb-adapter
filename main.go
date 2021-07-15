@@ -15,6 +15,8 @@
 package main
 
 import (
+	"os"
+
 	"log"
 	"net/http"
 
@@ -37,7 +39,7 @@ import (
 // @host localhost:9050
 // @BasePath /v1
 func main() {
-
+	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/Users/sauravghosh/Projects/go/src/github.com/cldcvr/dynamodb-adapter-WIP/creds.json")
 	// This will pack config-files folder inside binary
 	// you need rice utility for it
 	box := rice.MustFindBox("config-files")

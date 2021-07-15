@@ -18,6 +18,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"hash/fnv"
 	"strconv"
 	"strings"
@@ -279,6 +280,7 @@ func QueryAttributes(ctx context.Context, query models.Query) (map[string]interf
 	}
 	if int64(length) > originalLimit {
 		finalResp["Count"] = length - 1
+		finalResp["ScannedCount"] = length - 1
 		last := resp[length-2]
 		if sKey != "" {
 			finalResp["LastEvaluatedKey"] = map[string]interface{}{"offset": originalLimit + offset, pKey: last[pKey], tPKey: last[tPKey], sKey: last[sKey], tSKey: last[tSKey]}
@@ -293,9 +295,11 @@ func QueryAttributes(ctx context.Context, query models.Query) (map[string]interf
 			finalResp["Items"] = resp
 		}
 		finalResp["Count"] = length
+		finalResp["ScannedCount"] = length
 		finalResp["Items"] = resp
 		finalResp["LastEvaluatedKey"] = nil
 	}
+	fmt.Printf("Final Resp %#v\n", finalResp)
 	return finalResp, hash, nil
 }
 
