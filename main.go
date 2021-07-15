@@ -15,18 +15,23 @@
 package main
 
 import (
-	"os"
-
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	rice "github.com/GeertJohan/go.rice"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/api"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/docs"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/initializer"
+	"github.com/cloudspannerecosystem/dynamodb-adapter/pkg/logger"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/storage"
+	"github.com/cloudspannerecosystem/dynamodb-adapter/streamreplication"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/swaggo/gin-swagger/swaggerFiles"
 )
@@ -39,7 +44,6 @@ import (
 // @host localhost:9050
 // @BasePath /v1
 func main() {
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/Users/sauravghosh/Projects/go/src/github.com/cldcvr/dynamodb-adapter-WIP/creds.json")
 	// This will pack config-files folder inside binary
 	// you need rice utility for it
 	box := rice.MustFindBox("config-files")
@@ -67,5 +71,31 @@ func main() {
 			log.Fatal(err)
 		}
 	}()
+
+	if streamsConfig, err := ReadDynamoStreamConfig(box); err != nil {
+		logger.LogInfo("dynamoreplicator: no stream config found, skipping stream listeners")
+	} else {
+		go streamreplication.ReplicateDynamoStreams(streamsConfig)
+	}
+
 	storage.GetStorageInstance().Close()
+}
+
+func ReadDynamoStreamConfig(box *rice.Box) (*streamreplication.StreamsConfig, error) {
+	var environment = os.Getenv("ACTIVE_ENV")
+	if environment == "" {
+		environment = "staging"
+	}
+	environment = strings.ToLower(environment)
+
+	configBytes, err := box.Bytes(fmt.Sprintf("%s/dynamo-streams.json", environment))
+	if err != nil {
+		return nil, errors.Wrap(err, "readstreamconfig: error occured while reading stream config")
+	}
+	var config = streamreplication.StreamsConfig{}
+	err = json.Unmarshal(configBytes, &config)
+	if err != nil {
+		return nil, errors.Wrap(err, "readstreamconfig: error occured while parsing stream config")
+	}
+	return &config, nil
 }

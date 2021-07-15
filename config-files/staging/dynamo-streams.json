@@ -1,0 +1,13 @@
+{
+    "streams": [
+        {
+            "enabled": true,
+            "stream_arn": "arn:aws:dynamodb:ap-southeast-1:007229802613:table/users/stream/2021-07-14T11:08:12.993",
+            "dynamo_table_name": "users",
+            "checkpoint": {
+                "last_shard_id": null,
+                "last_sequence_number": null
+            }
+        }
+    ]
+}
