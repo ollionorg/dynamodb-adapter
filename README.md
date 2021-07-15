@@ -248,3 +248,58 @@ rice embed-go
 ## API Documentation
 This is can be imported in Postman or can be used for Swagger UI.
 You can get open-api-spec file here [here](https://github.com/cldcvr/dynamodb-adapter/wiki/Open-API-Spec)
+
+
+## Replicating DynamoDB stream records to Spanner Database
+
+Add AWS client credentials (must have access to access configured dynamo db stream) and AWS region to environment variables.
+
+```sh
+export AWS_PROFILE="your-profile"
+export AWS_REGION="ap-southeast-1"
+
+# or export credentials directly
+# export AWS_ACCESS_KEY_ID = ""
+# export AWS_SECRET_ACCESS_KEY = ""
+# export AWS_SESSION_TOKEN = ""
+# export AWS_REGION="ap-southeast-1"
+
+# if the service is deployed on AWS, we can make use of VM/service attached roles
+```
+
+If the `config-files/dynamo-stream.json` is present and `stream_replication_enabled` is set then adapter listens to the DynamoDB stream and starts replicating the records to spanner.
+
+Configuration fields:
+* `streams`
+   Array of DynamoDB streams to replicate on to spanner
+    * `stream_arn`
+      DynamoDB stream ARN
+    * `enabled `
+      Whether to replicate this stream
+    * `dynamo_table_name`
+      Dynamo table whose events we receive
+    * `checkpoint`
+      In stream checkpoint, if stream needs to consumed from a particular checkpoint. All sequence number post the number specified will be processed. If stream replication fails, put last successful stream shard ID and sequence number here
+        * `last_shard_id`
+          Last shard ID. We will resume here. Set to `null` if you want to start from beginning
+        * `last_sequence_number`
+          Last successful sequence number, records post this would be processed. Set to `null` if you want to start from beginning
+
+
+`config-files/production/dynamo-stream.json`
+```json
+{
+    "streams": [
+        {
+            "enabled": true,
+            "stream_arn": "",
+            "dynamo_table_name": "",
+            "checkpoint": {
+                "last_shard_id": "",
+                "last_sequence_number": ""
+            }
+        }
+    ]
+}
+```
+
