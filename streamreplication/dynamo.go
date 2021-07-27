@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	spannerapiv1 "github.com/cloudspannerecosystem/dynamodb-adapter/api/v1"
 	apimodels "github.com/cloudspannerecosystem/dynamodb-adapter/models"
@@ -20,27 +21,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 )
-
-// Checkpoint information to resume the stream consumption
-type Checkpoint struct {
-	// Last ongoing shard ID
-	LastShardID *string `json:"last_shard_id"`
-	// Last successful sequence number
-	LastSequenceNumber *string `json:"last_sequence_number"`
-}
-
-type Stream struct {
-	// whether to enable stream listener
-	Enabled         bool       `json:"enabled"`
-	StreamARN       string     `json:"stream_arn"`
-	DynamoTableName string     `json:"dynamo_table_name"`
-	Checkpoint      Checkpoint `json:"checkpoint"`
-}
-
-// StreamsConfig holds the streams values to listen to & corresponding table information
-type StreamsConfig struct {
-	Streams []Stream `json:"streams"`
-}
 
 // create Mock gin context for calling adapter handlers synchronously
 func createGinContext(w http.ResponseWriter) *gin.Context {
@@ -80,18 +60,12 @@ func fireSpannerRequest(methodname string, dynamorequest interface{}, spanner_fu
 }
 
 // PutItem inserts or updates an item in the database
-func (s *spannerService) PutItem(putItemRequest apimodels.Meta) error {
-	return fireSpannerRequest("PutItem", putItemRequest, spannerapiv1.UpdateMeta)
-}
-
-// UpdateItem updates an item given update expression
-func (s *spannerService) UpdateItem(updateItemRequest apimodels.UpdateAttr) error {
-	return fireSpannerRequest("UpdateItem", updateItemRequest, spannerapiv1.Update)
-}
-
-// DeleteItem from spanner
-func (s *spannerService) DeleteItem(deleterequest apimodels.Delete) error {
-	return fireSpannerRequest("DeleteItem", deleterequest, spannerapiv1.DeleteItem)
+func (s *spannerService) PutItem(putItemRequest *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
+	var insertRequest = apimodels.Meta{
+		TableName: *putItemRequest.TableName,
+		Item:      putItemRequest.Item,
+	}
+	return nil, fireSpannerRequest("PutItem", insertRequest, spannerapiv1.UpdateMeta)
 }
 
 // ReplicateDynamoStreams reads stream configs and starts a replicator for each stream
@@ -106,15 +80,17 @@ func ReplicateDynamoStreams(config *StreamsConfig) {
 
 	for _, stream := range config.Streams {
 		if stream.Enabled {
-			ReplicateStream(stream, spanner, client)
+			if stream.Type == STREAM_TYPE_DYNAMO {
+				ReplicateDynamoStream(stream, spanner, client)
+			}
 		} else {
 			logger.LogInfo("dynamoreplicator: stream for table " + stream.DynamoTableName + " is not enabled, skipping")
 		}
 	}
 }
 
-// ReplicateStream replicates an individual stream, it also listen for OS signals to handle graceful shutdown
-func ReplicateStream(stream Stream, spanner SpannerService, streamClient dynamo.StreamClient) {
+// ReplicateDynamoStream replicates an individual stream, it also listen for OS signals to handle graceful shutdown
+func ReplicateDynamoStream(stream Stream, spanner SpannerService, streamClient dynamo.StreamClient) {
 	var replicator = ProvideDynamoStreamerReplicator(stream.StreamARN, stream.DynamoTableName, spanner, streamClient)
 
 	go func(replicator *DynamoStreamerReplicator) {

@@ -72,23 +72,24 @@ func main() {
 		}
 	}()
 
-	if streamsConfig, err := ReadDynamoStreamConfig(box); err != nil {
-		logger.LogInfo("dynamoreplicator: no stream config found, skipping stream listeners")
+	if streamsConfig, err := ReadStreamConfig(box); err != nil {
+		logger.LogInfo("replicator: no stream config found, skipping stream listeners")
 	} else {
 		go streamreplication.ReplicateDynamoStreams(streamsConfig)
+		go streamreplication.ReplicateSpannerStreams(streamsConfig)
 	}
 
 	storage.GetStorageInstance().Close()
 }
 
-func ReadDynamoStreamConfig(box *rice.Box) (*streamreplication.StreamsConfig, error) {
+func ReadStreamConfig(box *rice.Box) (*streamreplication.StreamsConfig, error) {
 	var environment = os.Getenv("ACTIVE_ENV")
 	if environment == "" {
 		environment = "staging"
 	}
 	environment = strings.ToLower(environment)
 
-	configBytes, err := box.Bytes(fmt.Sprintf("%s/dynamo-streams.json", environment))
+	configBytes, err := box.Bytes(fmt.Sprintf("%s/streams.json", environment))
 	if err != nil {
 		return nil, errors.Wrap(err, "readstreamconfig: error occured while reading stream config")
 	}
