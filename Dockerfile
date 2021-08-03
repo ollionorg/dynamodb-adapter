@@ -12,39 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.12
+# start with Golang 1.13 image as builder
+FROM golang:1.13 AS builder
 
+WORKDIR /build
 
-# Set the Current Working Directory inside the container
-WORKDIR /go/src/db-driver
-
-# Force the go compiler to use modules
-ENV GO111MODULE=on
-
-# We want to populate the module cache based on the go.{mod,sum} files.
+# Cache modules retrieval - those don't change so often
 COPY go.mod .
 COPY go.sum .
-
-#This is the 'magic' step that will download all the dependencies that are specified in
-# the go.mod and go.sum file.
-# Because of how the layer caching system works in Docker, the  go mod download 
-# command will _ only_ be re-run when the go.mod or go.sum file change 
-# (or when we add another docker instruction this line)
 RUN go mod download
 
-# Copy everything from the current directory to the PWD(Present Working Directory) inside the container
+# Copy the code necessary to build the application
 COPY . .
 
-# Set active environment
+# Build the application
+# And compile the project
+RUN go build -o db-driver .
+
+# Create the minimal runtime image
+FROM ubuntu:18.04
+
+RUN apt update && apt install ca-certificates -y
+COPY --from=builder /build/db-driver .
+
 ARG ACTIVE_ENV
 ENV ACTIVE_ENV ${ACTIVE_ENV}
 
-# Download all the dependencies
-# https://stackoverflow.com/questions/28031603/what-do-three-dots-mean-in-go-command-line-invocations
-#RUN go get -d -v ./...
+ARG GOOGLE_APPLICATION_CREDENTIALS
+ENV GOOGLE_APPLICATION_CREDENTIALS ${GOOGLE_APPLICATION_CREDENTIALS}
 
-# Install the package
-RUN go install -v ./...
+ENV GIN_MODE=release
+EXPOSE 9050
 
-# Run the executable
-CMD ["db-driver"]
+CMD ["/db-driver"]
