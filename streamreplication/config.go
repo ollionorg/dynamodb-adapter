@@ -18,9 +18,8 @@ type Stream struct {
 	Enabled bool   `json:"enabled"`
 	Type    string `json:"type"` // can take values STREAM_TYPE_DYNAMO, STREAM_TYPE_SPANNER
 
-	StreamARN       string     `json:"stream_arn"`
-	DynamoTableName string     `json:"dynamo_table_name"`
-	Checkpoint      Checkpoint `json:"checkpoint"`
+	StreamARN       string `json:"stream_arn"`
+	DynamoTableName string `json:"dynamo_table_name"`
 
 	Project        string `json:"project"`
 	SubscriptionID string `json:"subscriptionId"`

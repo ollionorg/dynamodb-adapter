@@ -94,7 +94,7 @@ func ReplicateDynamoStream(stream Stream, spanner SpannerService, streamClient d
 	var replicator = ProvideDynamoStreamerReplicator(stream.StreamARN, stream.DynamoTableName, spanner, streamClient)
 
 	go func(replicator *DynamoStreamerReplicator) {
-		if err := replicator.Start(stream.Checkpoint.LastShardID, stream.Checkpoint.LastSequenceNumber); err != nil {
+		if err := replicator.Start(); err != nil {
 			logger.LogError("dynamoreplicator: error occured while starting stream for " +
 				stream.DynamoTableName + ": " + err.Error())
 		}

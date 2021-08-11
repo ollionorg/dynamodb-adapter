@@ -35,8 +35,8 @@ func ProvideDynamoStreamerReplicator(streamARN string, tableName string, spanner
 
 // Start streaming and replication, blocks. Must be called asynchronoulsy by the caller
 // run in coroutine
-func (d *DynamoStreamerReplicator) Start(lastShardID *string, lastSequenceNumber *string) error {
-	return d.streamer.Stream(lastShardID, lastSequenceNumber)
+func (d *DynamoStreamerReplicator) Start() error {
+	return d.streamer.Stream()
 }
 
 func (d *DynamoStreamerReplicator) Stop() {

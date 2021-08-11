@@ -1,8 +1,10 @@
 package dynamo
 
 import (
+	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	ds "github.com/aws/aws-sdk-go/service/dynamodbstreams"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/pkg/logger"
 )
@@ -24,10 +26,24 @@ type Streamer struct {
 	streamClient StreamClient
 	listeners    []Listener
 	stop         bool
+
+	inProcessShards       map[string]*dynamodbstreams.Shard
+	processedShards       map[string]*dynamodbstreams.Shard
+	allShards             map[string]*dynamodbstreams.Shard
+	shardSequenceNumbers  map[string]string
+	shardCronTimer        *time.Timer
+	processShardCronTimer *time.Timer
 }
 
 func ProvideStreamer(streamARN string, StreamClient StreamClient) *Streamer {
-	return &Streamer{streamARN: streamARN, streamClient: StreamClient}
+	return &Streamer{
+		streamARN:            streamARN,
+		streamClient:         StreamClient,
+		allShards:            make(map[string]*ds.Shard),
+		processedShards:      make(map[string]*ds.Shard),
+		inProcessShards:      make(map[string]*ds.Shard),
+		shardSequenceNumbers: make(map[string]string),
+	}
 }
 
 func (r *Streamer) StopStreaming() {
@@ -41,15 +57,11 @@ func (r *Streamer) AddRecordListener(listener Listener) {
 	r.listeners = append(r.listeners, listener)
 }
 
-// Stream events from dynamo db stream
-// lastShardId & lastSequenceId facilitates the resume over a stream
-func (r *Streamer) Stream(lastShardId *string, lastSequenceId *string) error {
+func (r *Streamer) fetchShards() error {
 	var err error
 	var out *ds.DescribeStreamOutput
 	var lastEvaluatedShardId *string = nil
 	var hasNextPage = true
-	var lastPageWasPartial = false
-
 	for hasNextPage && !r.stop {
 		if out, err = r.streamClient.DescribeStream(&ds.DescribeStreamInput{
 			ExclusiveStartShardId: lastEvaluatedShardId,
@@ -60,32 +72,18 @@ func (r *Streamer) Stream(lastShardId *string, lastSequenceId *string) error {
 
 		var shards = out.StreamDescription.Shards
 
-		var lastShardIndex = -1
-		if lastShardId == nil || lastPageWasPartial {
-			// if lastShardId is nil => we want to iterate over all shards from start
-			// lastPageWasPartial is true => we have already found a page where we wanted to resume
-			// we should iterate this page from start
-			lastShardIndex = 0
-		} else {
-			// we want to resume from a particular shard, let's look for that shard
-			// if we find the shard, set lastPageWasPartial as true so that next page is processed from start
-			for i, shard := range shards {
-				if *shard.ShardId == *lastShardId {
-					lastShardIndex = i
-					lastPageWasPartial = true
-				}
-			}
-		}
+		var lastShardIndex = 0
 
-		if lastShardIndex != -1 {
-			for i := lastShardIndex; i < len(shards) && !r.stop; i++ {
-				var shard = shards[i]
-				if err = r.processShard(shard, lastSequenceId); err != nil {
-					return err
+		for i := lastShardIndex; i < len(shards) && !r.stop; i++ {
+			var shard = shards[i]
+			if _, ok := r.allShards[*shard.ShardId]; !ok {
+				if _, ok = r.inProcessShards[*shard.ShardId]; !ok {
+					if _, ok = r.processedShards[*shard.ShardId]; !ok {
+						logger.LogInfo("shardmanager: new shard found: " + *shard.ShardId)
+						r.allShards[*shard.ShardId] = shard
+					}
 				}
 			}
-		} else {
-			logger.LogDebug("streamer: last shard not found in this shard page, looking for next page")
 		}
 
 		lastEvaluatedShardId = out.StreamDescription.LastEvaluatedShardId
@@ -96,7 +94,90 @@ func (r *Streamer) Stream(lastShardId *string, lastSequenceId *string) error {
 	return nil
 }
 
-func (r *Streamer) processShard(shard *ds.Shard, lastSequenceId *string) error {
+func (r *Streamer) fetchShardsCron(wg *sync.WaitGroup) {
+	defer wg.Done()
+	r.shardCronTimer = time.NewTimer(1 * time.Second)
+	for !r.stop {
+		<-r.shardCronTimer.C
+		if err := r.fetchShards(); err == nil {
+			r.shardCronTimer = time.NewTimer(10 * time.Second)
+		} else {
+			logger.LogError("shardmanager: error occured while fetching shard list", err)
+			r.stop = true
+		}
+	}
+}
+
+func (r *Streamer) processShards() error {
+	for !r.stop {
+		for _, shard := range r.allShards {
+			if !r.stop {
+				var parentProcessed = false
+				if shard.ParentShardId != nil {
+					_, parentProcessed = r.processedShards[*shard.ParentShardId]
+				}
+
+				if shard.ParentShardId == nil || parentProcessed {
+					logger.LogInfo("shardmanager: moving shard to in process queue: " + *shard.ShardId)
+					r.inProcessShards[*shard.ShardId] = shard
+					delete(r.allShards, *shard.ShardId)
+				}
+			}
+		}
+
+		for _, shard := range r.inProcessShards {
+			if !r.stop {
+				logger.LogInfo("shardmanager: processing shard: " + *shard.ShardId)
+
+				var lastSequenceNumber *string
+				if _, exists := r.shardSequenceNumbers[*shard.ShardId]; exists {
+					var seq = r.shardSequenceNumbers[*shard.ShardId]
+					lastSequenceNumber = &seq
+				}
+
+				if complete, err := r.processShard(shard, lastSequenceNumber); err != nil {
+					return err
+				} else if complete {
+					logger.LogInfo("shardmanager: moving shard to processed: " + *shard.ShardId)
+					r.processedShards[*shard.ShardId] = shard
+					delete(r.inProcessShards, *shard.ShardId)
+				} else {
+					logger.LogInfo("shardmanager: shard volutarily passed control: " + *shard.ShardId)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (r *Streamer) processShardsCron(wg *sync.WaitGroup) {
+	defer wg.Done()
+	r.processShardCronTimer = time.NewTimer(1 * time.Second)
+	for !r.stop {
+		<-r.processShardCronTimer.C
+		if err := r.processShards(); err == nil {
+			r.processShardCronTimer = time.NewTimer(10 * time.Second)
+		} else {
+			logger.LogError("shardmanager: error occured while processing shard", err)
+			r.stop = true
+		}
+	}
+}
+
+// Stream events from dynamo db stream
+func (r *Streamer) Stream() error {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go r.fetchShardsCron(&wg)
+
+	wg.Add(1)
+	go r.processShardsCron(&wg)
+
+	wg.Wait()
+	return nil
+}
+
+func (r *Streamer) processShard(shard *ds.Shard, lastSequenceId *string) (bool, error) {
 	var err error
 	var shardIteratorInput ds.GetShardIteratorInput
 	if lastSequenceId == nil {
@@ -120,29 +201,31 @@ func (r *Streamer) processShard(shard *ds.Shard, lastSequenceId *string) error {
 
 	var shardIterator *ds.GetShardIteratorOutput
 	if shardIterator, err = r.streamClient.GetShardIterator(&shardIteratorInput); err != nil {
-		return err
+		return false, err
 	}
 
 	var currentShardIterator = shardIterator.ShardIterator
 	var recordsOutput *ds.GetRecordsOutput
 	var nilForCount = 0
 	for currentShardIterator != nil && !r.stop {
-		if nilForCount == 3 {
-			logger.LogDebug("streamer: No records to read. Looks like shard hasn't been sealed, sleeping for sometime")
+		if nilForCount == 5 {
 			time.Sleep(5 * time.Second)
-			nilForCount = 0
+			logger.LogDebug("streamer: No records to read even after 5 attempts, giving control to another shard")
+			return false, nil
 		}
 		if recordsOutput, err = r.streamClient.GetRecords(&ds.GetRecordsInput{
 			ShardIterator: currentShardIterator,
 		}); err != nil {
-			return err
+			return false, err
 		}
 
 		for _, record := range recordsOutput.Records {
 			if !r.stop {
 				if err = r.notifyListener(shard.ShardId, record); err != nil {
-					return err
+					return false, err
 				}
+				// update sequence number
+				r.shardSequenceNumbers[*shard.ShardId] = *record.Dynamodb.SequenceNumber
 			}
 		}
 		if len(recordsOutput.Records) == 0 {
@@ -150,7 +233,7 @@ func (r *Streamer) processShard(shard *ds.Shard, lastSequenceId *string) error {
 		}
 		currentShardIterator = recordsOutput.NextShardIterator
 	}
-	return nil
+	return true, nil
 }
 
 func (r *Streamer) notifyListener(shardId *string, record *ds.Record) error {
