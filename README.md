@@ -248,3 +248,96 @@ rice embed-go
 ## API Documentation
 This is can be imported in Postman or can be used for Swagger UI.
 You can get open-api-spec file here [here](https://github.com/cldcvr/dynamodb-adapter/wiki/Open-API-Spec)
+
+
+## Replicating streams
+
+Note: Only once instance of stream replicator should be run. Stream is consumed sequentially, running multiple replicators on same stream might lead to data corruption.
+
+Add AWS client credentials (must have access to access configured dynamo db stream) and AWS region to environment variables. Also add GCP application credentials to environment variable.
+
+```sh
+export AWS_PROFILE="your-profile"
+export AWS_REGION="ap-southeast-1"
+
+# or export credentials directly
+# export AWS_ACCESS_KEY_ID = ""
+# export AWS_SECRET_ACCESS_KEY = ""
+# export AWS_SESSION_TOKEN = ""
+# export AWS_REGION="ap-southeast-1"
+
+# export GOOGLE_APPLICATION_CREDENTIALS=abs path to service account json
+
+# if the service is deployed on AWS, we can make use of VM/service attached roles
+```
+
+If the `config-files/streams.json` is present and `enabled` is set then adapter listens to the stream and starts replication.
+
+Configuration fields:
+* `streams`
+   Array of DynamoDB streams to replicate on to spanner
+    * `stream_arn` (dynamo stream only)
+      DynamoDB stream ARN
+    * `enabled ` (required)
+      Whether to replicate this stream
+    * `type` (required)
+      either `dynamo` or `spanner`. type of stream
+    * `dynamo_table_name`
+      Dynamo table whose events we receive
+    * `checkpoint` (dynamo stream only)
+      In stream checkpoint, if stream needs to consumed from a particular checkpoint. All sequence number post the number specified will be processed. If stream replication fails, put last successful stream shard ID and sequence number here
+        * `last_shard_id`
+          Last shard ID. We will resume here. Set to `null` if you want to start from beginning
+        * `last_sequence_number`
+          Last successful sequence number, records post this would be processed. Set to `null` if you want to start from beginning
+    * `project`  (spanner stream only)
+        GCP project name where the spanner pubsub topic and subscription is
+    * `subscriptionId` (spanner stream only)
+        spanner pubsub subscription id
+
+### DynamoDB stream records to Spanner Database
+
+Create a stream on Dynamo db table.
+
+`config-files/production/streams.json`
+```json
+{
+    "streams": [
+        {
+            "enabled": true,
+            "stream_arn": "",
+            "type": "dynamo",
+            "dynamo_table_name": "",
+            "checkpoint": {
+                "last_shard_id": "",
+                "last_sequence_number": ""
+            }
+        }
+    ]
+}
+```
+
+### DynamoDB stream records to Spanner Database
+
+Configure spanner stream by adding a row to `dynamodb_adapter_config_manager` table.
+
+| tableName | config | cronTime | enabledStream | pubsubTopic | uniqueValue |
+| --------- | ------ | -------- | ------------- | ----------- | ----------- |
+| orion_notification | 1,1 | 1 | 1 | sub-id | orion_1 |
+
+
+`config-files/production/streams.json`
+```json
+{
+    "streams": [
+        {
+            "enabled": true,
+            "type": "spanner",
+            "dynamo_table_name": "orion_notification",
+            "project": "",
+            "subscriptionId": "sub-id"
+        }
+    ]
+}
+```
+
