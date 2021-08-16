@@ -282,3 +282,13 @@ type StreamDataModel struct {
 	EventID        string                 `json:"EventId"`
 	EventSourceArn string                 `json:"EventSourceArn"`
 }
+
+// AuditMessage struct
+type AuditMessage struct {
+	RequestID string `json:"requestId"`
+	TableName string `json:"tableName"`
+	PKeyName  string `json:"primaryKeyName"`
+	// SKeyName  string      `json:"sortKeyName"`
+	PKeyValue string `json:"primaryKeyValue"`
+	// SKeyValue interface{} `json:"sortKeyValue"`
+}

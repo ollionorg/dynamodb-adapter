@@ -26,10 +26,12 @@ import (
 	"github.com/cloudspannerecosystem/dynamodb-adapter/models"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/pkg/errors"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/pkg/logger"
+	"github.com/cloudspannerecosystem/dynamodb-adapter/service/audit"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/service/services"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/storage"
 	"github.com/gin-gonic/gin"
 	"github.com/opentracing/opentracing-go"
+	uuid "github.com/satori/go.uuid"
 )
 
 // InitDBAPI - routes for apis
@@ -116,7 +118,6 @@ func UpdateMeta(c *gin.Context) {
 		c.JSON(errors.New("ValidationException", err).HTTPResponse(meta))
 		return
 	}
-	fmt.Printf("META %#v\n", meta)
 
 	if allow := services.MayIReadOrWrite(meta.TableName, true, "UpdateMeta"); !allow {
 		c.JSON(http.StatusOK, gin.H{})
@@ -297,34 +298,63 @@ func GetItemMeta(c *gin.Context) {
 	var getItemMeta models.GetItemMeta
 	if err := c.ShouldBindJSON(&getItemMeta); err != nil {
 		c.JSON(errors.New("ValidationException", err).HTTPResponse(getItemMeta))
-	} else {
-		span.SetTag("table", getItemMeta.TableName)
-		logger.LogDebug(getItemMeta)
-		if allow := services.MayIReadOrWrite(getItemMeta.TableName, false, ""); !allow {
-			c.JSON(http.StatusOK, gin.H{})
-			return
-		}
-		getItemMeta.PrimaryKeyMap, err = ConvertDynamoToMap(getItemMeta.TableName, getItemMeta.Key)
-		if err != nil {
-			c.JSON(errors.New("ValidationException", err).HTTPResponse(getItemMeta))
-			return
-		}
-		getItemMeta.ExpressionAttributeNames = ChangeColumnToSpannerExpressionName(getItemMeta.TableName, getItemMeta.ExpressionAttributeNames)
-		res, rowErr := services.GetWithProjection(c.Request.Context(), getItemMeta.TableName, getItemMeta.PrimaryKeyMap, getItemMeta.ProjectionExpression, getItemMeta.ExpressionAttributeNames)
-		if rowErr == nil {
-			changedColumns := ChangeResponseToOriginalColumns(getItemMeta.TableName, res)
-			output, err := ChangeMaptoDynamoMap(changedColumns)
-			if err != nil {
-				c.JSON(errors.HTTPResponse(err, "OutputChangedError"))
-			}
-			output = map[string]interface{}{
-				"Item": output,
-			}
-			c.JSON(http.StatusOK, output)
-		} else {
-			c.JSON(errors.HTTPResponse(rowErr, getItemMeta))
-		}
+		return
 	}
+	span.SetTag("table", getItemMeta.TableName)
+	logger.LogDebug(getItemMeta)
+	if allow := services.MayIReadOrWrite(getItemMeta.TableName, false, ""); !allow {
+		c.JSON(http.StatusOK, gin.H{})
+		return
+	}
+	getItemMeta.PrimaryKeyMap, err = ConvertDynamoToMap(getItemMeta.TableName, getItemMeta.Key)
+	if err != nil {
+		c.JSON(errors.New("ValidationException", err).HTTPResponse(getItemMeta))
+		return
+	}
+
+	// Publish data for audit
+	defer func(c *gin.Context) {
+		go func() {
+			logger.LogInfo("Here ........")
+			tableConf, err := config.GetTableConf(getItemMeta.TableName)
+			if err != nil {
+				return
+			}
+			var reqID = c.Request.Header.Get("X-B3-Spanid")
+			if reqID == "" {
+				reqID = uuid.NewV4().String()
+			}
+			var msg = &models.AuditMessage{
+				RequestID: reqID,
+				PKeyName:  tableConf.PartitionKey,
+				PKeyValue: getItemMeta.PrimaryKeyMap[tableConf.PartitionKey].(string),
+				TableName: getItemMeta.TableName,
+			}
+			// if tableConf.SortKey != "" {
+			// 	msg.SKeyName = tableConf.SortKey
+			// 	msg.SKeyValue = getItemMeta.PrimaryKeyMap[tableConf.SortKey]
+			// }
+			var a = audit.New()
+			a.Publish(config.AuditConfig.PubSubTopic, msg)
+		}()
+	}(c)
+
+	getItemMeta.ExpressionAttributeNames = ChangeColumnToSpannerExpressionName(getItemMeta.TableName, getItemMeta.ExpressionAttributeNames)
+	res, rowErr := services.GetWithProjection(c.Request.Context(), getItemMeta.TableName, getItemMeta.PrimaryKeyMap, getItemMeta.ProjectionExpression, getItemMeta.ExpressionAttributeNames)
+	if rowErr == nil {
+		changedColumns := ChangeResponseToOriginalColumns(getItemMeta.TableName, res)
+		output, err := ChangeMaptoDynamoMap(changedColumns)
+		if err != nil {
+			c.JSON(errors.HTTPResponse(err, "OutputChangedError"))
+		}
+		output = map[string]interface{}{
+			"Item": output,
+		}
+		c.JSON(http.StatusOK, output)
+	} else {
+		c.JSON(errors.HTTPResponse(rowErr, getItemMeta))
+	}
+
 }
 
 // BatchGetItem to get with projections

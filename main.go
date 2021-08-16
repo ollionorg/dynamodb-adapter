@@ -26,7 +26,6 @@ import (
 	"github.com/cloudspannerecosystem/dynamodb-adapter/api"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/docs"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/initializer"
-	"github.com/cloudspannerecosystem/dynamodb-adapter/pkg/logger"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/storage"
 	"github.com/cloudspannerecosystem/dynamodb-adapter/streamreplication"
 	"github.com/gin-contrib/pprof"
@@ -72,12 +71,12 @@ func main() {
 		}
 	}()
 
-	if streamsConfig, err := ReadStreamConfig(box); err != nil {
-		logger.LogInfo("replicator: no stream config found, skipping stream listeners")
-	} else {
-		go streamreplication.ReplicateDynamoStreams(streamsConfig)
-		go streamreplication.ReplicateSpannerStreams(streamsConfig)
-	}
+	// if streamsConfig, err := ReadStreamConfig(box); err != nil {
+	// 	logger.LogInfo("replicator: no stream config found, skipping stream listeners")
+	// } else {
+	// 	go streamreplication.ReplicateDynamoStreams(streamsConfig)
+	// 	go streamreplication.ReplicateSpannerStreams(streamsConfig)
+	// }
 
 	storage.GetStorageInstance().Close()
 }

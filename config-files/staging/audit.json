@@ -1,0 +1,4 @@
+{
+    "TableName": "orion_cc_notification",
+    "PubSubTopic": "orion-notification-audit-schema"
+}

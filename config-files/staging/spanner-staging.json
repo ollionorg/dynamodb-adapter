@@ -1,7 +1,5 @@
 {
-    "dynamodb_adapter_table_ddl": "dbdriver-test",
-    "dynamodb_adapter_config_manager": "dbdriver-test",
-    "users": "dbdriver-test",
-    "products": "dbdriver-test",
-    "orion_notification": "dbdriver-test"
+    "dynamodb_adapter_table_ddl": "orion-cc-instance",
+    "dynamodb_adapter_config_manager": "orion-cc-instance",
+    "orion_cc_notification": "orion-cc-instance"
 }

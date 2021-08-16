@@ -1,39 +1,5 @@
 {
-    "users":{
-        "partitionKey":"first_name",
-        "sortKey": "email",
-        "attributeTypes": {
-            "first_name":"S",
-            "last_name":"S",
-            "country":"S",
-            "email":"S",
-            "age": "N"
-        },
-        "indices": {
-            "country_age_index": {
-                "partitionKey": "country",
-                "sortKey": "age"
-            }
-        }
-    },
-    "products":{
-        "partitionKey":"name",
-        "sortKey": "category",
-        "attributeTypes": {
-            "name":"S",
-            "category": "S",
-            "description":"S",
-            "price":"N"
-        },
-        "indices": {
-            "category_price_index": {
-                "partitionKey": "category",
-                "sortKey": "price"
-            }
-        }
-    },
-
-    "orion_notification": {
+    "orion_cc_notification": {
         "partitionKey": "notification_id",
         "attributeTypes": {
             "notification_id": "S",

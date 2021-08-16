@@ -28,6 +28,12 @@ import (
 	"github.com/cloudspannerecosystem/dynamodb-adapter/pkg/logger"
 )
 
+// AuditConfiguration struct
+type AuditConfiguration struct {
+	TableName   string
+	PubSubTopic string
+}
+
 // Configuration struct
 type Configuration struct {
 	GoogleProjectID string
@@ -51,6 +57,8 @@ type TableAttributeConfig struct {
 
 // Tables in spanner
 var Tables map[string]TableAttributeConfig
+
+var AuditConfig = &AuditConfiguration{}
 
 var once sync.Once
 
@@ -132,6 +140,14 @@ func InitConfig(box *rice.Box) {
 			}
 			for k, v := range tmp {
 				models.SpannerTableMap[changeTableNameForSP(k)] = v
+			}
+
+			b, err := box.Bytes("staging/audit.json")
+			if err == nil {
+				err = json.Unmarshal(b, &AuditConfig)
+				if err != nil {
+					logger.LogFatal(err)
+				}
 			}
 		}
 	})
