@@ -1,5 +1,5 @@
 {
-    "orion_cc_notification": {
+    "orion-cc-notification": {
         "partitionKey": "notification_id",
         "attributeTypes": {
             "notification_id": "S",

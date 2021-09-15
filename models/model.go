@@ -285,10 +285,10 @@ type StreamDataModel struct {
 
 // AuditMessage struct
 type AuditMessage struct {
-	RequestID string `json:"requestId"`
-	TableName string `json:"tableName"`
-	PKeyName  string `json:"primaryKeyName"`
+	RequestID string      `json:"requestId"`
+	TableName string      `json:"tableName"`
+	PKeyName  string      `json:"primaryKeyName"`
+	PKeyValue interface{} `json:"primaryKeyValue"`
 	// SKeyName  string      `json:"sortKeyName"`
-	PKeyValue string `json:"primaryKeyValue"`
 	// SKeyValue interface{} `json:"sortKeyValue"`
 }

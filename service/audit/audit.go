@@ -42,23 +42,18 @@ func (a *Audit) Publish(topicID string, auditMsg *models.AuditMessage) {
 		a.mu.Unlock()
 	}
 
-	logger.LogInfo("%s\n", auditMsg.RequestID)
-	logger.LogInfo("%s\n", auditMsg.PKeyName)
-	logger.LogInfo("%s\n", auditMsg.PKeyValue)
-	logger.LogInfo("%s\n", auditMsg.TableName)
 	var ctx = context.Background()
 	data, err := json.Marshal(auditMsg)
 	if err != nil {
-		logger.LogInfo("Here ........1")
 		logger.LogError(err)
 		return
 	}
+	logger.LogInfo("publishing message")
 	res := topic.Publish(ctx, &pubsub.Message{
 		Data: data,
 	})
 	msgID, err := res.Get(ctx)
 	if err != nil {
-		logger.LogInfo("Here ........2")
 		logger.LogError(err)
 		return
 	}

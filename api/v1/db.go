@@ -286,6 +286,7 @@ func QueryTable(c *gin.Context) {
 func GetItemMeta(c *gin.Context) {
 	defer PanicHandler(c)
 	defer c.Request.Body.Close()
+
 	carrier := opentracing.HTTPHeadersCarrier(c.Request.Header)
 	spanContext, err := opentracing.GlobalTracer().Extract(opentracing.HTTPHeaders, carrier)
 	if err != nil || spanContext == nil {
@@ -295,6 +296,7 @@ func GetItemMeta(c *gin.Context) {
 	c.Request = c.Request.WithContext(ctx)
 	defer span.Finish()
 	span = addParentSpanID(c, span)
+
 	var getItemMeta models.GetItemMeta
 	if err := c.ShouldBindJSON(&getItemMeta); err != nil {
 		c.JSON(errors.New("ValidationException", err).HTTPResponse(getItemMeta))
@@ -315,7 +317,6 @@ func GetItemMeta(c *gin.Context) {
 	// Publish data for audit
 	defer func(c *gin.Context) {
 		go func() {
-			logger.LogInfo("Here ........")
 			tableConf, err := config.GetTableConf(getItemMeta.TableName)
 			if err != nil {
 				return
@@ -324,11 +325,16 @@ func GetItemMeta(c *gin.Context) {
 			if reqID == "" {
 				reqID = uuid.NewV4().String()
 			}
+			var tableName = strings.ReplaceAll(getItemMeta.TableName, "-", "_")
+			var pk = tableConf.PartitionKey
+			pk = strings.ReplaceAll(pk, "-", "_")
+			logger.LogInfo("TableName: %s", tableName)
+
 			var msg = &models.AuditMessage{
 				RequestID: reqID,
-				PKeyName:  tableConf.PartitionKey,
-				PKeyValue: getItemMeta.PrimaryKeyMap[tableConf.PartitionKey].(string),
-				TableName: getItemMeta.TableName,
+				PKeyName:  pk,
+				PKeyValue: getItemMeta.PrimaryKeyMap[tableConf.PartitionKey],
+				TableName: tableName,
 			}
 			// if tableConf.SortKey != "" {
 			// 	msg.SKeyName = tableConf.SortKey
