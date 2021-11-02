@@ -29,6 +29,7 @@ type Streamer struct {
 
 	inProcessShards       map[string]*dynamodbstreams.Shard
 	processedShards       map[string]*dynamodbstreams.Shard
+	shardsLock            sync.Mutex
 	allShards             map[string]*dynamodbstreams.Shard
 	shardSequenceNumbers  map[string]string
 	shardCronTimer        *time.Timer
@@ -58,11 +59,15 @@ func (r *Streamer) AddRecordListener(listener Listener) {
 }
 
 func (r *Streamer) fetchShards() error {
+	r.shardsLock.Lock()
+	defer r.shardsLock.Unlock()
+
 	var err error
 	var out *ds.DescribeStreamOutput
 	var lastEvaluatedShardId *string = nil
 	var hasNextPage = true
 	for hasNextPage && !r.stop {
+		logger.LogInfo("shardmanager: describing streams")
 		if out, err = r.streamClient.DescribeStream(&ds.DescribeStreamInput{
 			ExclusiveStartShardId: lastEvaluatedShardId,
 			StreamArn:             &r.streamARN,
@@ -109,41 +114,43 @@ func (r *Streamer) fetchShardsCron(wg *sync.WaitGroup) {
 }
 
 func (r *Streamer) processShards() error {
-	for !r.stop {
-		for _, shard := range r.allShards {
-			if !r.stop {
-				var parentProcessed = false
-				if shard.ParentShardId != nil {
-					_, parentProcessed = r.processedShards[*shard.ParentShardId]
-				}
+	r.shardsLock.Lock()
+	for _, shard := range r.allShards {
+		if !r.stop {
+			var parentProcessed = false
+			if shard.ParentShardId != nil {
+				_, parentProcessed = r.processedShards[*shard.ParentShardId]
+			}
+			var _, parentRegistered = r.allShards[*shard.ParentShardId]
+			logger.LogInfo("shardmanager: shard: "+*shard.ShardId+", has parent? %s, isRegistered? %s, parent processed? %s", shard.ParentShardId != nil, parentRegistered, parentProcessed)
 
-				if shard.ParentShardId == nil || parentProcessed {
-					logger.LogInfo("shardmanager: moving shard to in process queue: " + *shard.ShardId)
-					r.inProcessShards[*shard.ShardId] = shard
-					delete(r.allShards, *shard.ShardId)
-				}
+			if shard.ParentShardId == nil || !parentRegistered || parentProcessed {
+				logger.LogInfo("shardmanager: moving shard to in process queue: " + *shard.ShardId)
+				r.inProcessShards[*shard.ShardId] = shard
+				delete(r.allShards, *shard.ShardId)
 			}
 		}
+	}
+	r.shardsLock.Unlock()
 
-		for _, shard := range r.inProcessShards {
-			if !r.stop {
-				logger.LogInfo("shardmanager: processing shard: " + *shard.ShardId)
+	for _, shard := range r.inProcessShards {
+		if !r.stop {
+			logger.LogInfo("shardmanager: processing shard: " + *shard.ShardId)
 
-				var lastSequenceNumber *string
-				if _, exists := r.shardSequenceNumbers[*shard.ShardId]; exists {
-					var seq = r.shardSequenceNumbers[*shard.ShardId]
-					lastSequenceNumber = &seq
-				}
+			var lastSequenceNumber *string
+			if _, exists := r.shardSequenceNumbers[*shard.ShardId]; exists {
+				var seq = r.shardSequenceNumbers[*shard.ShardId]
+				lastSequenceNumber = &seq
+			}
 
-				if complete, err := r.processShard(shard, lastSequenceNumber); err != nil {
-					return err
-				} else if complete {
-					logger.LogInfo("shardmanager: moving shard to processed: " + *shard.ShardId)
-					r.processedShards[*shard.ShardId] = shard
-					delete(r.inProcessShards, *shard.ShardId)
-				} else {
-					logger.LogInfo("shardmanager: shard volutarily passed control: " + *shard.ShardId)
-				}
+			if complete, err := r.processShard(shard, lastSequenceNumber); err != nil {
+				return err
+			} else if complete {
+				logger.LogInfo("shardmanager: moving shard to processed: " + *shard.ShardId)
+				r.processedShards[*shard.ShardId] = shard
+				delete(r.inProcessShards, *shard.ShardId)
+			} else {
+				logger.LogInfo("shardmanager: shard volutarily passed control: " + *shard.ShardId)
 			}
 		}
 	}
@@ -156,7 +163,7 @@ func (r *Streamer) processShardsCron(wg *sync.WaitGroup) {
 	for !r.stop {
 		<-r.processShardCronTimer.C
 		if err := r.processShards(); err == nil {
-			r.processShardCronTimer = time.NewTimer(10 * time.Second)
+			r.processShardCronTimer = time.NewTimer(1 * time.Second)
 		} else {
 			logger.LogError("shardmanager: error occured while processing shard", err)
 			r.stop = true
